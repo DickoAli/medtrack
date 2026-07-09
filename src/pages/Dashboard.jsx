@@ -201,7 +201,7 @@ if (page === 'produits') return (
               }`}>
                 <div className="flex items-center justify-between mb-2">
                   <p className="font-bold text-blue-950 text-sm">
-                    Dr. {v.medecins?.nom || '—'}
+                    {v.nom_contact || (v.medecins?.nom ? `Dr. ${v.medecins.nom}` : '—')}
                   </p>
                   <span className={`text-xs font-bold px-2 py-1 rounded-full ${
                     v.statut === 'Réalisée' ? 'bg-teal-100 text-teal-600' :
