@@ -6,10 +6,12 @@ const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY
 export const supabase = createClient(supabaseUrl, supabaseKey)
 
 export async function getProfile(userId) {
-  const { data } = await supabase
+  const { data, error } = await supabase
     .from('profiles')
     .select('*, delegates(*)')
     .eq('id', userId)
     .single()
+  
+  console.log('profile chargé:', data, 'error:', error)
   return data
 }

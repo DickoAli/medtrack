@@ -29,15 +29,18 @@ export default function DelegueApp({ session, profile }) {
   }, [])
 
   const fetchData = async () => {
-    const { data: v } = await supabase
+    const { data: v, error } = await supabase
       .from('visites')
       .select('*, medecins(*)')
-      .eq('delegate_id', profile.delegate_id)
       .order('created_at', { ascending: false })
 
     const { data: m } = await supabase.from('medecins').select('*')
 
-    setVisites(v || [])
+    console.log('visites:', v, 'error:', error)
+    console.log('delegate_id du profil:', profile.delegate_id)
+
+    const mesVisites = (v || []).filter(x => x.delegate_id === profile.delegate_id)
+    setVisites(mesVisites)
     setMedecins(m || [])
     setLoading(false)
   }
