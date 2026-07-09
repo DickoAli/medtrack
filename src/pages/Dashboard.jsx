@@ -1,3 +1,5 @@
+import GestionDelegues from './GestionDelegues'
+import GestionProduits from './GestionProduits'
 import { useState, useEffect } from 'react'
 import { supabase } from '../supabase'
 import NouvelleVisite from './NouvelleVisite'
@@ -46,6 +48,13 @@ export default function Dashboard({ session, profile }) {
   if (page === 'statistiques') return (
     <Statistiques onBack={() => setPage('dashboard')} />
   )
+  if (page === 'delegues') return (
+  <GestionDelegues onBack={() => { setPage('dashboard'); fetchData() }} />
+)
+
+if (page === 'produits') return (
+  <GestionProduits onBack={() => setPage('dashboard')} />
+)
 
   const todayStr = new Date().toISOString().slice(0, 10)
   const todayVisites = visites.filter((v) => v.created_at?.slice(0, 10) === todayStr)
@@ -107,6 +116,18 @@ export default function Dashboard({ session, profile }) {
         >
           📊 Statistiques par délégué
         </button>
+        <button
+  onClick={() => setPage('delegues')}
+  className="w-full bg-teal-600 text-white font-black py-4 rounded-2xl text-sm hover:bg-teal-500 transition-colors"
+>
+  👥 Gestion des délégués
+</button>
+<button
+  onClick={() => setPage('produits')}
+  className="w-full bg-amber-500 text-white font-black py-4 rounded-2xl text-sm hover:bg-amber-400 transition-colors"
+>
+  💊 Produits du labo
+</button>
       </div>
 
       {/* Visites planifiées */}

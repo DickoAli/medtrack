@@ -3,6 +3,7 @@ import { supabase } from '../supabase'
 
 export default function DelegueApp({ session, profile }) {
   const [visites, setVisites] = useState([])
+  const [produits, setProduits] = useState([])
   const [medecins, setMedecins] = useState([])
   const [loading, setLoading] = useState(true)
   const [page, setPage] = useState('accueil')
@@ -11,7 +12,11 @@ export default function DelegueApp({ session, profile }) {
 
   const [form, setForm] = useState({
     medecin_id: '',
-    produit: '',
+    produits_ids: [],
+    type_lieu: '',
+    nom_contact: '',
+    titre_contact: '',
+    telephone_contact: '',
     statut: 'Réalisée',
     note: '',
     type: 'immediate',
@@ -29,19 +34,18 @@ export default function DelegueApp({ session, profile }) {
   }, [])
 
   const fetchData = async () => {
-    const { data: v, error } = await supabase
+    const { data: v } = await supabase
       .from('visites')
       .select('*, medecins(*)')
+      .eq('delegate_id', profile.delegate_id)
       .order('created_at', { ascending: false })
 
     const { data: m } = await supabase.from('medecins').select('*')
+    const { data: p } = await supabase.from('produits').select('*').order('nom')
 
-    console.log('visites:', v, 'error:', error)
-    console.log('delegate_id du profil:', profile.delegate_id)
-
-    const mesVisites = (v || []).filter(x => x.delegate_id === profile.delegate_id)
-    setVisites(mesVisites)
+    setVisites(v || [])
     setMedecins(m || [])
+    setProduits(p || [])
     setLoading(false)
   }
 
@@ -49,9 +53,9 @@ export default function DelegueApp({ session, profile }) {
     if (!navigator.geolocation) return
     watchRef.current = navigator.geolocation.watchPosition(
       async (pos) => {
-        const { lat, lng } = { lat: pos.coords.latitude, lng: pos.coords.longitude }
+        const lat = pos.coords.latitude
+        const lng = pos.coords.longitude
         setPosition({ lat, lng })
-        // Mettre à jour la position dans Supabase
         await supabase
           .from('profiles')
           .update({ last_lat: lat, last_lng: lng, last_seen: new Date().toISOString() })
@@ -64,30 +68,54 @@ export default function DelegueApp({ session, profile }) {
 
   const set = (k, v) => setForm((f) => ({ ...f, [k]: v }))
 
+  const toggleProduit = (id) => {
+    setForm((f) => ({
+      ...f,
+      produits_ids: f.produits_ids.includes(id)
+        ? f.produits_ids.filter((x) => x !== id)
+        : [...f.produits_ids, id]
+    }))
+  }
+
   const handleSave = async () => {
-    if (!form.medecin_id || !form.produit) {
-      alert('Remplissez tous les champs obligatoires')
-      return
-    }
-    if (form.type === 'planifiee' && !form.date_prevue) {
-      alert('Choisissez une date pour la visite planifiée')
-      return
-    }
+    if (!form.type_lieu) { alert('Sélectionnez le type de lieu'); return }
+    if (!form.nom_contact) { alert('Le nom du contact est obligatoire'); return }
+    if (form.produits_ids.length === 0) { alert('Sélectionnez au moins un produit'); return }
+    if (form.type === 'planifiee' && !form.date_prevue) { alert('Choisissez une date'); return }
+
     setSaving(true)
-    await supabase.from('visites').insert({
+
+    const { data: visiteData } = await supabase.from('visites').insert({
       delegate_id: profile.delegate_id,
-      medecin_id: form.medecin_id,
-      produit: form.produit,
+      medecin_id: form.medecin_id || null,
+      type_lieu: form.type_lieu,
+      nom_contact: form.nom_contact,
+      titre_contact: form.titre_contact,
+      telephone_contact: form.telephone_contact,
+      produit: produits.filter(p => form.produits_ids.includes(p.id)).map(p => p.nom).join(', '),
       statut: form.type === 'planifiee' ? 'Planifiée' : form.statut,
       note: form.note,
       latitude: form.type === 'immediate' ? position?.lat || null : null,
       longitude: form.type === 'immediate' ? position?.lng || null : null,
       type: form.type,
       date_prevue: form.date_prevue || null,
-    })
+    }).select().single()
+
+    if (visiteData) {
+      const visite_produits = form.produits_ids.map(pid => ({
+        visite_id: visiteData.id,
+        produit_id: pid
+      }))
+      await supabase.from('visite_produits').insert(visite_produits)
+    }
+
     setSaving(false)
     setSuccess(true)
-    setForm({ medecin_id: '', produit: '', statut: 'Réalisée', note: '', type: 'immediate', date_prevue: '' })
+    setForm({
+      medecin_id: '', produits_ids: [], type_lieu: '', nom_contact: '',
+      titre_contact: '', telephone_contact: '', statut: 'Réalisée',
+      note: '', type: 'immediate', date_prevue: ''
+    })
     fetchData()
   }
 
@@ -99,6 +127,9 @@ export default function DelegueApp({ session, profile }) {
 
   const todayStr = new Date().toISOString().slice(0, 10)
   const todayVisites = visites.filter((v) => v.created_at?.slice(0, 10) === todayStr)
+
+  const TYPES_LIEU = ['CSRef', 'CSCom', 'Clinique', 'Cabinet de santé', 'Hôpital', 'Pharmacie', 'Autre']
+  const TITRES = ['Médecin généraliste', 'Spécialiste', 'Pharmacien', 'Infirmier', 'Directeur', 'Autre']
 
   return (
     <div className="min-h-screen bg-slate-100">
@@ -172,7 +203,6 @@ export default function DelegueApp({ session, profile }) {
             + Enregistrer une visite
           </button>
 
-          {/* Visites du jour */}
           <div>
             <p className="text-xs text-slate-400 font-bold uppercase tracking-wider mb-3">Visites d'aujourd'hui</p>
             {todayVisites.length === 0 ? (
@@ -184,12 +214,12 @@ export default function DelegueApp({ session, profile }) {
                 {todayVisites.map((v) => (
                   <div key={v.id} className="bg-white rounded-2xl p-4">
                     <div className="flex items-center justify-between">
-                      <p className="font-bold text-blue-950 text-sm">Dr. {v.medecins?.nom}</p>
+                      <p className="font-bold text-blue-950 text-sm">{v.nom_contact || v.medecins?.nom}</p>
                       <span className={`text-xs font-bold px-2 py-1 rounded-full ${v.statut === 'Réalisée' ? 'bg-teal-100 text-teal-600' : 'bg-rose-100 text-rose-500'}`}>
                         {v.statut}
                       </span>
                     </div>
-                    <p className="text-xs text-slate-400 mt-1">{v.produit}</p>
+                    <p className="text-xs text-slate-400 mt-1">{v.type_lieu} · {v.produit}</p>
                   </div>
                 ))}
               </div>
@@ -200,80 +230,136 @@ export default function DelegueApp({ session, profile }) {
 
       {/* Nouvelle visite */}
       {page === 'visite' && (
-        <div className="p-6 flex flex-col gap-4">
+        <div className="p-6 flex flex-col gap-4 pb-10">
           {success && (
             <div className="bg-teal-50 border border-teal-200 rounded-2xl p-4 text-center">
               <p className="text-teal-600 font-black">✅ Visite enregistrée !</p>
             </div>
           )}
 
+          {/* Type de visite */}
           <div>
-            <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Médecin visité *</label>
+            <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Type de visite</label>
             <select
-              value={form.medecin_id}
-              onChange={(e) => set('medecin_id', e.target.value)}
+              value={form.type}
+              onChange={(e) => set('type', e.target.value)}
               className="w-full mt-1 p-3 rounded-xl border border-slate-200 bg-white text-sm"
             >
-              <option value="">Sélectionner un médecin</option>
-              {medecins.map((m) => (
-                <option key={m.id} value={m.id}>Dr. {m.nom} — {m.specialite}</option>
-              ))}
+              <option value="immediate">Visite immédiate</option>
+              <option value="planifiee">Planifier pour plus tard</option>
+            </select>
+          </div>
+
+          {form.type === 'planifiee' && (
+            <div>
+              <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Date et heure prévue</label>
+              <input
+                type="datetime-local"
+                value={form.date_prevue}
+                onChange={(e) => set('date_prevue', e.target.value)}
+                className="w-full mt-1 p-3 rounded-xl border border-slate-200 bg-white text-sm"
+              />
+            </div>
+          )}
+
+          {/* Type de lieu */}
+          <div>
+            <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Type de lieu *</label>
+            <select
+              value={form.type_lieu}
+              onChange={(e) => set('type_lieu', e.target.value)}
+              className="w-full mt-1 p-3 rounded-xl border border-slate-200 bg-white text-sm"
+            >
+              <option value="">Sélectionner le lieu</option>
+              {TYPES_LIEU.map((t) => <option key={t}>{t}</option>)}
+            </select>
+          </div>
+
+          {/* Contact */}
+          <div>
+            <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Nom du contact *</label>
+            <input
+              value={form.nom_contact}
+              onChange={(e) => set('nom_contact', e.target.value)}
+              className="w-full mt-1 p-3 rounded-xl border border-slate-200 bg-white text-sm"
+              placeholder="Nom et prénom"
+            />
+          </div>
+
+          <div>
+            <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Titre / Fonction</label>
+            <select
+              value={form.titre_contact}
+              onChange={(e) => set('titre_contact', e.target.value)}
+              className="w-full mt-1 p-3 rounded-xl border border-slate-200 bg-white text-sm"
+            >
+              <option value="">Sélectionner</option>
+              {TITRES.map((t) => <option key={t}>{t}</option>)}
             </select>
           </div>
 
           <div>
-            <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Produit présenté *</label>
-            <select
-              value={form.produit}
-              onChange={(e) => set('produit', e.target.value)}
+            <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Téléphone du contact</label>
+            <input
+              type="tel"
+              value={form.telephone_contact}
+              onChange={(e) => set('telephone_contact', e.target.value)}
               className="w-full mt-1 p-3 rounded-xl border border-slate-200 bg-white text-sm"
-            >
-              <option value="">Sélectionner un produit</option>
-              <option>CardioPlus</option>
-              <option>DiabetoReg</option>
-              <option>OncoPrime</option>
-              <option>NeuroFlex</option>
-              <option>ImmunoBoost</option>
-            </select>
+              placeholder="0550000000"
+            />
           </div>
 
-         <div>
-  <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Type de visite</label>
-  <select
-    value={form.type}
-    onChange={(e) => set('type', e.target.value)}
-    className="w-full mt-1 p-3 rounded-xl border border-slate-200 bg-white text-sm"
-  >
-    <option value="immediate">Visite immédiate</option>
-    <option value="planifiee">Planifier pour plus tard</option>
-  </select>
-</div>
+          {/* Produits */}
+          <div>
+            <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Produits présentés *</label>
+            {produits.length === 0 ? (
+              <p className="text-xs text-slate-400 mt-2">Aucun produit disponible — le manager doit en ajouter</p>
+            ) : (
+              <div className="mt-2 flex flex-wrap gap-2">
+                {produits.map((p) => (
+                  <button
+                    key={p.id}
+                    onClick={() => toggleProduit(p.id)}
+                    className={`px-3 py-2 rounded-xl text-xs font-bold border transition-colors ${
+                      form.produits_ids.includes(p.id)
+                        ? 'bg-teal-400 text-blue-950 border-teal-400'
+                        : 'bg-white text-slate-500 border-slate-200'
+                    }`}
+                  >
+                    {p.nom}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
 
-{form.type === 'planifiee' && (
-  <div>
-    <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Date et heure prévue</label>
-    <input
-      type="datetime-local"
-      value={form.date_prevue}
-      onChange={(e) => set('date_prevue', e.target.value)}
-      className="w-full mt-1 p-3 rounded-xl border border-slate-200 bg-white text-sm"
-    />
-  </div>
-)}
+          {/* Statut */}
+          {form.type === 'immediate' && (
+            <div>
+              <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Statut</label>
+              <select
+                value={form.statut}
+                onChange={(e) => set('statut', e.target.value)}
+                className="w-full mt-1 p-3 rounded-xl border border-slate-200 bg-white text-sm"
+              >
+                <option>Réalisée</option>
+                <option>Non aboutie</option>
+              </select>
+            </div>
+          )}
 
-<div>
-  <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Statut</label>
-  <select
-    value={form.statut}
-    onChange={(e) => set('statut', e.target.value)}
-    className="w-full mt-1 p-3 rounded-xl border border-slate-200 bg-white text-sm"
-  >
-    <option>Réalisée</option>
-    <option>Planifiée</option>
-    <option>Non aboutie</option>
-  </select>
-</div>
+          {/* Note */}
+          <div>
+            <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Note / Compte-rendu</label>
+            <textarea
+              value={form.note}
+              onChange={(e) => set('note', e.target.value)}
+              className="w-full mt-1 p-3 rounded-xl border border-slate-200 bg-white text-sm h-24 resize-none"
+              placeholder="Observations, prochaines étapes..."
+            />
+          </div>
 
+          {/* GPS */}
           <div className={`rounded-xl p-3 flex items-center gap-2 ${position ? 'bg-teal-50 border border-teal-200' : 'bg-amber-50 border border-amber-200'}`}>
             <span>{position ? '📍' : '⚠️'}</span>
             <p className="text-xs font-bold text-slate-600">
@@ -293,20 +379,43 @@ export default function DelegueApp({ session, profile }) {
 
       {/* Historique */}
       {page === 'historique' && (
-        <div className="p-6 flex flex-col gap-3">
+        <div className="p-6 flex flex-col gap-3 pb-10">
           <p className="text-xs text-slate-400 font-bold uppercase tracking-wider">{visites.length} visites au total</p>
-          {visites.map((v) => (
-            <div key={v.id} className="bg-white rounded-2xl p-4">
-              <div className="flex items-center justify-between mb-1">
-                <p className="font-bold text-blue-950 text-sm">Dr. {v.medecins?.nom}</p>
-                <span className={`text-xs font-bold px-2 py-1 rounded-full ${v.statut === 'Réalisée' ? 'bg-teal-100 text-teal-600' : 'bg-rose-100 text-rose-500'}`}>
-                  {v.statut}
-                </span>
-              </div>
-              <p className="text-xs text-slate-400">{v.produit} · {v.created_at?.slice(0, 10)}</p>
-              {v.note && <p className="text-xs text-slate-500 italic mt-1">{v.note}</p>}
+          {visites.length === 0 ? (
+            <div className="bg-white rounded-2xl p-8 text-center">
+              <p className="text-slate-400 text-sm">Aucune visite enregistrée</p>
             </div>
-          ))}
+          ) : (
+            visites.map((v) => (
+              <div key={v.id} className={`bg-white rounded-2xl p-4 border-l-4 ${
+                v.statut === 'Réalisée' ? 'border-teal-400' :
+                v.statut === 'Planifiée' ? 'border-amber-400' :
+                'border-rose-400'
+              }`}>
+                <div className="flex items-center justify-between mb-1">
+                  <p className="font-bold text-blue-950 text-sm">{v.nom_contact || v.medecins?.nom || '—'}</p>
+                  <span className={`text-xs font-bold px-2 py-1 rounded-full ${
+                    v.statut === 'Réalisée' ? 'bg-teal-100 text-teal-600' :
+                    v.statut === 'Planifiée' ? 'bg-amber-100 text-amber-600' :
+                    'bg-rose-100 text-rose-500'
+                  }`}>
+                    {v.statut}
+                  </span>
+                </div>
+                {v.titre_contact && <p className="text-xs text-slate-400">{v.titre_contact}</p>}
+                {v.type_lieu && <p className="text-xs text-slate-400">{v.type_lieu}</p>}
+                {v.produit && <p className="text-xs text-teal-600 font-bold mt-1">💊 {v.produit}</p>}
+                {v.telephone_contact && <p className="text-xs text-slate-400">📞 {v.telephone_contact}</p>}
+                {v.statut === 'Planifiée' && v.date_prevue && (
+                  <p className="text-xs text-amber-500 font-bold mt-1">
+                    📅 {new Date(v.date_prevue).toLocaleString('fr-FR')}
+                  </p>
+                )}
+                {v.note && <p className="text-xs text-slate-500 italic mt-1">{v.note}</p>}
+                <p className="text-xs text-slate-300 mt-2">{v.created_at?.slice(0, 10)}</p>
+              </div>
+            ))
+          )}
         </div>
       )}
     </div>
