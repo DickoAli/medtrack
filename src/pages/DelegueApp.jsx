@@ -110,12 +110,11 @@ export default function DelegueApp({ session, profile }) {
     }
 
     setSaving(false)
-    setSuccess(true)
-    setForm({
-      medecin_id: '', produits_ids: [], type_lieu: '', nom_contact: '',
-      titre_contact: '', telephone_contact: '', statut: 'Réalisée',
-      note: '', type: 'immediate', date_prevue: ''
-    })
+   setSuccess(true)
+setTimeout(() => {
+  setPage('accueil')
+  setSuccess(false)
+}, 1500)
     fetchData()
   }
 
