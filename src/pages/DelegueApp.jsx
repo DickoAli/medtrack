@@ -110,12 +110,17 @@ export default function DelegueApp({ session, profile }) {
     }
 
     setSaving(false)
-   setSuccess(true)
-setTimeout(() => {
-  setPage('accueil')
-  setSuccess(false)
-}, 1500)
+    setSuccess(true)
+    setForm({
+      medecin_id: '', produits_ids: [], type_lieu: '', nom_contact: '',
+      titre_contact: '', telephone_contact: '', statut: 'Réalisée',
+      note: '', type: 'immediate', date_prevue: ''
+    })
     fetchData()
+    setTimeout(() => {
+      setPage('accueil')
+      setSuccess(false)
+    }, 1500)
   }
 
   if (loading) return (
@@ -314,20 +319,32 @@ setTimeout(() => {
             {produits.length === 0 ? (
               <p className="text-xs text-slate-400 mt-2">Aucun produit disponible — le manager doit en ajouter</p>
             ) : (
-              <div className="mt-2 flex flex-wrap gap-2">
-                {produits.map((p) => (
-                  <button
-                    key={p.id}
-                    onClick={() => toggleProduit(p.id)}
-                    className={`px-3 py-2 rounded-xl text-xs font-bold border transition-colors ${
-                      form.produits_ids.includes(p.id)
-                        ? 'bg-teal-400 text-blue-950 border-teal-400'
-                        : 'bg-white text-slate-500 border-slate-200'
-                    }`}
-                  >
-                    {p.nom}
-                  </button>
-                ))}
+              <div className="mt-2 flex flex-col gap-2">
+                <select
+                  onChange={(e) => { if (e.target.value) toggleProduit(e.target.value) }}
+                  className="w-full p-3 rounded-xl border border-slate-200 bg-white text-sm"
+                  value=""
+                >
+                  <option value="">Sélectionner un produit...</option>
+                  {produits.filter(p => !form.produits_ids.includes(p.id)).map((p) => (
+                    <option key={p.id} value={p.id}>
+                      {p.nom}{p.categorie ? ` — ${p.categorie}` : ''}
+                    </option>
+                  ))}
+                </select>
+                {form.produits_ids.length > 0 && (
+                  <div className="flex flex-wrap gap-2 mt-1">
+                    {form.produits_ids.map(id => {
+                      const p = produits.find(x => x.id === id)
+                      return p ? (
+                        <div key={id} className="flex items-center gap-1 bg-teal-400 text-blue-950 px-3 py-1.5 rounded-xl text-xs font-bold">
+                          <span>{p.nom}</span>
+                          <button onClick={() => toggleProduit(id)} className="ml-1 font-black">✕</button>
+                        </div>
+                      ) : null
+                    })}
+                  </div>
+                )}
               </div>
             )}
           </div>
