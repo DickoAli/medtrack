@@ -1,3 +1,4 @@
+import Rapports from './Rapports'
 import GestionDelegues from './GestionDelegues'
 import GestionProduits from './GestionProduits'
 import { useState, useEffect } from 'react'
@@ -48,6 +49,9 @@ export default function Dashboard({ session, profile }) {
   if (page === 'statistiques') return (
     <Statistiques onBack={() => setPage('dashboard')} />
   )
+  if (page === 'rapports') return (
+  <Rapports onBack={() => setPage('dashboard')} />
+)
   if (page === 'delegues') return (
   <GestionDelegues onBack={() => { setPage('dashboard'); fetchData() }} />
 )
@@ -102,33 +106,39 @@ if (page === 'produits') return (
         </div>
       </div>
 
-      {/* Boutons */}
-      <div className="px-6 mb-6 flex flex-col gap-3">
-        <button
-          onClick={() => setPage('carte')}
-          className="w-full bg-blue-950 text-white font-black py-4 rounded-2xl text-sm hover:bg-blue-900 transition-colors"
-        >
-          🗺️ Carte des délégués
-        </button>
-        <button
-          onClick={() => setPage('statistiques')}
-          className="w-full bg-purple-600 text-white font-black py-4 rounded-2xl text-sm hover:bg-purple-500 transition-colors"
-        >
-          📊 Statistiques par délégué
-        </button>
-        <button
-  onClick={() => setPage('delegues')}
-  className="w-full bg-teal-600 text-white font-black py-4 rounded-2xl text-sm hover:bg-teal-500 transition-colors"
->
-  👥 Gestion des délégués
-</button>
-<button
-  onClick={() => setPage('produits')}
-  className="w-full bg-amber-500 text-white font-black py-4 rounded-2xl text-sm hover:bg-amber-400 transition-colors"
->
-  💊 Produits du labo
-</button>
-      </div>
+    {/* Boutons */}
+<div className="px-6 mb-6 flex flex-col gap-3">
+  <button
+    onClick={() => setPage('carte')}
+    className="w-full bg-blue-950 text-white font-black py-4 rounded-2xl text-sm hover:bg-blue-900 transition-colors"
+  >
+    🗺️ Carte des délégués
+  </button>
+  <button
+    onClick={() => setPage('statistiques')}
+    className="w-full bg-purple-600 text-white font-black py-4 rounded-2xl text-sm hover:bg-purple-500 transition-colors"
+  >
+    📊 Statistiques par délégué
+  </button>
+  <button
+    onClick={() => setPage('delegues')}
+    className="w-full bg-teal-600 text-white font-black py-4 rounded-2xl text-sm hover:bg-teal-500 transition-colors"
+  >
+    👥 Gestion des délégués
+  </button>
+  <button
+    onClick={() => setPage('produits')}
+    className="w-full bg-amber-500 text-white font-black py-4 rounded-2xl text-sm hover:bg-amber-400 transition-colors"
+  >
+    💊 Produits du labo
+  </button>
+  <button
+    onClick={() => setPage('rapports')}
+    className="w-full bg-green-600 text-white font-black py-4 rounded-2xl text-sm hover:bg-green-500 transition-colors"
+  >
+    📥 Rapports & Export Excel
+  </button>
+</div>
 
       {/* Visites planifiées */}
       {planifiees.length > 0 && (
