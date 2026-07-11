@@ -2,7 +2,6 @@ import { useState, useEffect } from 'react'
 import { supabase } from '../supabase'
 import { createClient } from '@supabase/supabase-js'
 
-// Client isolé pour créer des comptes sans affecter la session courante
 const supabaseSecondary = createClient(
   import.meta.env.VITE_SUPABASE_URL,
   import.meta.env.VITE_SUPABASE_ANON_KEY,
@@ -22,25 +21,52 @@ export default function GestionDelegues({ onBack }) {
   const [editing, setEditing] = useState(null)
   const [saving, setSaving] = useState(false)
   const [successMsg, setSuccessMsg] = useState('')
- const [form, setForm] = useState({
+  const [form, setForm] = useState({
     prenom: '', nom: '', email: '', telephone: '', zone: '', password: '', zone_autre: ''
   })
+
+  const ZONES = [
+    'Bamako - Commune I',
+    'Bamako - Commune II',
+    'Bamako - Commune III',
+    'Bamako - Commune IV',
+    'Bamako - Commune V',
+    'Bamako - Commune VI',
+    'Kayes',
+    'Kita',
+    'Nioro',
+    'Koulikoro',
+    'Dioïla',
+    'Nara',
+    'Sikasso',
+    'Bougouni',
+    'Koutiala',
+    'Ségou',
+    'San',
+    'Mopti',
+    'Douentza',
+    'Bandiagara',
+    'Tombouctou',
+    'Gao',
+    'Kidal',
+    'Ménaka',
+    'Taoudénit',
+    'Autre (à préciser)',
+  ]
 
   useEffect(() => {
     fetchDelegues()
   }, [])
 
- const { data: delegueData } = await supabase
-  .from('delegates')
-  .insert({ 
-    prenom: form.prenom, 
-    nom: form.nom, 
-    email: form.email, 
-    telephone: form.telephone, 
-    zone: form.zone === 'Autre (à préciser)' ? form.zone_autre : form.zone 
-  })
-  .select()
-  .single()
+  const fetchDelegues = async () => {
+    const { data } = await supabase
+      .from('delegates')
+      .select('*')
+      .order('created_at', { ascending: false })
+    setDelegues(data || [])
+    setLoading(false)
+  }
+
   const set = (k, v) => setForm((f) => ({ ...f, [k]: v }))
 
   const handleSave = async () => {
@@ -48,20 +74,25 @@ export default function GestionDelegues({ onBack }) {
       alert('Prénom, nom et email sont obligatoires')
       return
     }
+    if (form.zone === 'Autre (à préciser)' && !form.zone_autre) {
+      alert('Veuillez préciser la ville')
+      return
+    }
     setSaving(true)
 
+    const zoneFinale = form.zone === 'Autre (à préciser)' ? form.zone_autre : form.zone
+
     if (editing) {
-     await supabase
-  .from('delegates')
-  .update({ 
-    prenom: form.prenom, 
-    nom: form.nom, 
-    telephone: form.telephone, 
-    zone: form.zone === 'Autre (à préciser)' ? form.zone_autre : form.zone 
-  })
-  .eq('id', editing)
+      await supabase
+        .from('delegates')
+        .update({
+          prenom: form.prenom,
+          nom: form.nom,
+          telephone: form.telephone,
+          zone: zoneFinale
+        })
+        .eq('id', editing)
     } else {
-      // Créer compte avec client secondaire isolé
       const { data: authData, error: authError } = await supabaseSecondary.auth.signUp({
         email: form.email,
         password: form.password || 'delegue123',
@@ -73,14 +104,18 @@ export default function GestionDelegues({ onBack }) {
         return
       }
 
-      // Créer délégué
       const { data: delegueData } = await supabase
         .from('delegates')
-        .insert({ prenom: form.prenom, nom: form.nom, email: form.email, telephone: form.telephone, zone: form.zone })
+        .insert({
+          prenom: form.prenom,
+          nom: form.nom,
+          email: form.email,
+          telephone: form.telephone,
+          zone: zoneFinale
+        })
         .select()
         .single()
 
-      // Créer profil lié
       if (authData.user && delegueData) {
         await supabase.from('profiles').insert({
           id: authData.user.id,
@@ -89,22 +124,21 @@ export default function GestionDelegues({ onBack }) {
         })
       }
 
-      // Déconnecter le client secondaire
       await supabaseSecondary.auth.signOut()
     }
 
     setSaving(false)
     setShowForm(false)
     setEditing(null)
-    setForm({ prenom: '', nom: '', email: '', telephone: '', zone: '', password: '' })
-    setSuccessMsg('Délégué créé avec succès !')
+    setForm({ prenom: '', nom: '', email: '', telephone: '', zone: '', password: '', zone_autre: '' })
+    setSuccessMsg('Délégué enregistré avec succès !')
     setTimeout(() => setSuccessMsg(''), 3000)
     fetchDelegues()
   }
 
   const handleEdit = (d) => {
     setEditing(d.id)
-    setForm({ prenom: d.prenom, nom: d.nom, email: d.email, telephone: d.telephone || '', zone: d.zone || '', password: '' })
+    setForm({ prenom: d.prenom, nom: d.nom, email: d.email, telephone: d.telephone || '', zone: d.zone || '', password: '', zone_autre: '' })
     setShowForm(true)
   }
 
@@ -113,35 +147,6 @@ export default function GestionDelegues({ onBack }) {
     await supabase.from('delegates').delete().eq('id', d.id)
     fetchDelegues()
   }
-
-  const ZONES = [
-  // District de Bamako
-  'Bamako - Commune I',
-  'Bamako - Commune II',
-  'Bamako - Commune III',
-  'Bamako - Commune IV',
-  'Bamako - Commune V',
-  'Bamako - Commune VI',
-  // Régions du Mali
-  'Kayes',
-  'Koulikoro',
-  'Sikasso',
-  'Ségou',
-  'Mopti',
-  'Tombouctou',
-  'Gao',
-  'Kidal',
-  'Ménaka',
-  'Taoudénit',
-   'Nioro',
-    'Douentza',
-     'Bandiagara',
-      'Taoudénit',
-
-  'Autre (à préciser)',
-
-
-]
 
   if (loading) return (
     <div className="min-h-screen bg-slate-100 flex items-center justify-center">
@@ -157,7 +162,11 @@ export default function GestionDelegues({ onBack }) {
           <h1 className="text-white font-black">Gestion des délégués</h1>
         </div>
         <button
-          onClick={() => { setShowForm(true); setEditing(null); setForm({ prenom: '', nom: '', email: '', telephone: '', zone: '', password: '' }) }}
+          onClick={() => {
+            setShowForm(true)
+            setEditing(null)
+            setForm({ prenom: '', nom: '', email: '', telephone: '', zone: '', password: '', zone_autre: '' })
+          }}
           className="bg-teal-400 text-blue-950 px-4 py-2 rounded-xl font-black text-xs"
         >
           + Ajouter
@@ -235,41 +244,28 @@ export default function GestionDelegues({ onBack }) {
               </div>
 
               <div>
-  <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Zone</label>
-  <select
-    value={form.zone}
-    onChange={(e) => set('zone', e.target.value)}
-    className="w-full mt-1 p-3 rounded-xl border border-slate-200 bg-slate-50 text-sm"
-  >
-    <option value="">Sélectionner une zone</option>
-    {ZONES.map((z) => <option key={z}>{z}</option>)}
-  </select>
-</div>
+                <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Zone</label>
+                <select
+                  value={form.zone}
+                  onChange={(e) => set('zone', e.target.value)}
+                  className="w-full mt-1 p-3 rounded-xl border border-slate-200 bg-slate-50 text-sm"
+                >
+                  <option value="">Sélectionner une zone</option>
+                  {ZONES.map((z) => <option key={z}>{z}</option>)}
+                </select>
+              </div>
 
-{form.zone === 'Autre (à préciser)' && (
- <div>
-  <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Zone</label>
-  <select
-    value={form.zone}
-    onChange={(e) => set('zone', e.target.value)}
-    className="w-full mt-1 p-3 rounded-xl border border-slate-200 bg-slate-50 text-sm"
-  >
-    <option value="">Sélectionner une zone</option>
-    {ZONES.map((z) => <option key={z}>{z}</option>)}
-  </select>
-</div>
-
-{form.zone === 'Autre (à préciser)' && (
-  <div>
-    <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Préciser la ville</label>
-    <input
-      value={form.zone_autre}
-      onChange={(e) => set('zone_autre', e.target.value)}
-      className="w-full mt-1 p-3 rounded-xl border border-slate-200 bg-slate-50 text-sm"
-      placeholder="Nom de la ville ou commune..."
-    />
-  </div>
-)}
+              {form.zone === 'Autre (à préciser)' && (
+                <div>
+                  <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Préciser la ville</label>
+                  <input
+                    value={form.zone_autre}
+                    onChange={(e) => set('zone_autre', e.target.value)}
+                    className="w-full mt-1 p-3 rounded-xl border border-slate-200 bg-slate-50 text-sm"
+                    placeholder="Nom de la ville ou commune..."
+                  />
+                </div>
+              )}
 
               <div className="flex gap-3">
                 <button
