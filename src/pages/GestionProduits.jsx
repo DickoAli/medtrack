@@ -27,11 +27,21 @@ export default function GestionProduits({ onBack }) {
   const handleSave = async () => {
     if (!form.nom) { alert('Le nom est obligatoire'); return }
     setSaving(true)
-    if (editing) {
-      await supabase.from('produits').update(form).eq('id', editing)
-    } else {
-      await supabase.from('produits').insert(form)
-    }
+   const categorieFinale = form.categorie === 'Autre (à préciser)' ? form.categorie_autre : form.categorie
+
+if (editing) {
+  await supabase.from('produits').update({
+    nom: form.nom,
+    description: form.description,
+    categorie: categorieFinale
+  }).eq('id', editing)
+} else {
+  await supabase.from('produits').insert({
+    nom: form.nom,
+    description: form.description,
+    categorie: categorieFinale
+  })
+}
     setSaving(false)
     setShowForm(false)
     setEditing(null)
@@ -51,7 +61,7 @@ export default function GestionProduits({ onBack }) {
     fetchProduits()
   }
 
-  const CATEGORIES = ['Cardiologie', 'Diabétologie', 'Oncologie', 'Neurologie', 'Immunologie', 'Autre']
+  const CATEGORIES = ['Cardiologie', 'Diabétologie', 'Oncologie', 'Neurologie', 'Immunologie', 'Autre (à préciser)']
 
   if (loading) return (
     <div className="min-h-screen bg-slate-100 flex items-center justify-center">
@@ -92,16 +102,28 @@ export default function GestionProduits({ onBack }) {
                 />
               </div>
               <div>
-                <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Catégorie</label>
-                <select
-                  value={form.categorie}
-                  onChange={(e) => set('categorie', e.target.value)}
-                  className="w-full mt-1 p-3 rounded-xl border border-slate-200 bg-slate-50 text-sm"
-                >
-                  <option value="">Sélectionner</option>
-                  {CATEGORIES.map((c) => <option key={c}>{c}</option>)}
-                </select>
-              </div>
+  <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Catégorie</label>
+  <select
+    value={form.categorie}
+    onChange={(e) => set('categorie', e.target.value)}
+    className="w-full mt-1 p-3 rounded-xl border border-slate-200 bg-slate-50 text-sm"
+  >
+    <option value="">Sélectionner</option>
+    {CATEGORIES.map((c) => <option key={c}>{c}</option>)}
+  </select>
+</div>
+
+{form.categorie === 'Autre (à préciser)' && (
+  <div>
+    <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Préciser la catégorie</label>
+    <input
+      value={form.categorie_autre || ''}
+      onChange={(e) => set('categorie_autre', e.target.value)}
+      className="w-full mt-1 p-3 rounded-xl border border-slate-200 bg-slate-50 text-sm"
+      placeholder="Nom de la catégorie..."
+    />
+  </div>
+)}
               <div>
                 <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Description</label>
                 <textarea
