@@ -32,23 +32,14 @@ export default function GestionDelegues({ onBack }) {
 
   const set = (k, v) => setForm((f) => ({ ...f, [k]: v }))
 
-  // Créer compte auth
+  // Sauvegarder session manager
+const { data: { session: managerSession } } = await supabase.auth.getSession()
+
+// Créer compte auth
 const { data: authData, error: authError } = await supabaseAdmin.auth.signUp({
   email: form.email,
   password: form.password || 'delegue123',
-  options: {
-    emailRedirectTo: undefined
-  }
 })
-
-// Restaurer la session manager
-const { data: { session } } = await supabase.auth.getSession()
-if (!session) {
-  await supabase.auth.signInWithPassword({
-    email: 'manager@medtrack.com',
-    password: 'manager123'
-  })
-}
 
 if (authError) {
   alert('Erreur: ' + authError.message)
@@ -72,6 +63,13 @@ if (authData.user && delegueData) {
   })
 }
 
+// Restaurer session manager
+if (managerSession) {
+  await supabase.auth.setSession({
+    access_token: managerSession.access_token,
+    refresh_token: managerSession.refresh_token
+  })
+}
     setSaving(false)
     setShowForm(false)
     setEditing(null)
