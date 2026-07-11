@@ -1,5 +1,11 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../supabase'
+import { createClient } from '@supabase/supabase-js'
+
+const supabaseAdmin = createClient(
+  import.meta.env.VITE_SUPABASE_URL,
+  import.meta.env.VITE_SUPABASE_ANON_KEY
+)
 
 export default function GestionDelegues({ onBack }) {
   const [delegues, setDelegues] = useState([])
@@ -27,10 +33,22 @@ export default function GestionDelegues({ onBack }) {
   const set = (k, v) => setForm((f) => ({ ...f, [k]: v }))
 
   // Créer compte auth
-const { data: authData, error: authError } = await supabase.auth.signUp({
+const { data: authData, error: authError } = await supabaseAdmin.auth.signUp({
   email: form.email,
   password: form.password || 'delegue123',
+  options: {
+    emailRedirectTo: undefined
+  }
 })
+
+// Restaurer la session manager
+const { data: { session } } = await supabase.auth.getSession()
+if (!session) {
+  await supabase.auth.signInWithPassword({
+    email: 'manager@medtrack.com',
+    password: 'manager123'
+  })
+}
 
 if (authError) {
   alert('Erreur: ' + authError.message)
