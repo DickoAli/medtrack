@@ -10,18 +10,19 @@ export default function GestionProduits({ onBack }) {
   const [successMsg, setSuccessMsg] = useState('')
   const [importing, setImporting] = useState(false)
   const [search, setSearch] = useState('')
+  const [selected, setSelected] = useState([])
   const fileRef = useRef()
-  const [form, setForm] = useState({ nom: '', description: '', categorie: '', categorie_autre: '' })
+  const [form, setForm] = useState({
+    nom: '', description: '', categorie: '', categorie_autre: '', statut_produit: 'Normal'
+  })
 
   const CATEGORIES = ['Cardiologie', 'Diabétologie', 'Oncologie', 'Neurologie', 'Immunologie', 'Autre (à préciser)']
+  const STATUTS = ['Normal', 'Éliminé de gamme', 'Arrêt de distribution']
 
   useEffect(() => { fetchProduits() }, [])
 
   const fetchProduits = async () => {
-    const { data } = await supabase
-      .from('produits')
-      .select('*')
-      .order('nom')
+    const { data } = await supabase.from('produits').select('*').order('nom')
     setProduits(data || [])
     setLoading(false)
   }
@@ -35,17 +36,19 @@ export default function GestionProduits({ onBack }) {
 
     if (editing) {
       await supabase.from('produits').update({
-        nom: form.nom, description: form.description, categorie: categorieFinale
+        nom: form.nom, description: form.description,
+        categorie: categorieFinale, statut_produit: form.statut_produit
       }).eq('id', editing)
     } else {
       await supabase.from('produits').insert({
-        nom: form.nom, description: form.description, categorie: categorieFinale
+        nom: form.nom, description: form.description,
+        categorie: categorieFinale, statut_produit: form.statut_produit
       })
     }
     setSaving(false)
     setShowForm(false)
     setEditing(null)
-    setForm({ nom: '', description: '', categorie: '', categorie_autre: '' })
+    setForm({ nom: '', description: '', categorie: '', categorie_autre: '', statut_produit: 'Normal' })
     setSuccessMsg('Produit enregistré !')
     setTimeout(() => setSuccessMsg(''), 3000)
     fetchProduits()
@@ -53,7 +56,7 @@ export default function GestionProduits({ onBack }) {
 
   const handleEdit = (p) => {
     setEditing(p.id)
-    setForm({ nom: p.nom, description: p.description || '', categorie: p.categorie || '', categorie_autre: '' })
+    setForm({ nom: p.nom, description: p.description || '', categorie: p.categorie || '', categorie_autre: '', statut_produit: p.statut_produit || 'Normal' })
     setShowForm(true)
   }
 
@@ -63,18 +66,33 @@ export default function GestionProduits({ onBack }) {
     fetchProduits()
   }
 
+  const handleDeleteSelected = async () => {
+    if (!confirm(`Supprimer ${selected.length} produit(s) ?`)) return
+    await supabase.from('produits').delete().in('id', selected)
+    setSelected([])
+    fetchProduits()
+  }
+
+  const toggleSelect = (id) => {
+    setSelected(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id])
+  }
+
+  const toggleSelectAll = () => {
+    if (selected.length === produitsFiltres.length) {
+      setSelected([])
+    } else {
+      setSelected(produitsFiltres.map(p => p.id))
+    }
+  }
+
   const handleCSV = async (e) => {
     const file = e.target.files[0]
     if (!file) return
     setImporting(true)
-
     const text = await file.text()
     const lines = text.split('\n').filter(l => l.trim())
-    
-    // Détecter le séparateur (virgule ou point-virgule)
     const separator = lines[0].includes(';') ? ';' : ','
     const headers = lines[0].split(separator).map(h => h.trim().toLowerCase().replace(/"/g, ''))
-    
     const nomIdx = headers.findIndex(h => h.includes('nom') || h.includes('name') || h.includes('produit'))
     const descIdx = headers.findIndex(h => h.includes('desc'))
     const catIdx = headers.findIndex(h => h.includes('cat'))
@@ -85,26 +103,23 @@ export default function GestionProduits({ onBack }) {
         nom: cols[nomIdx !== -1 ? nomIdx : 0] || '',
         description: descIdx !== -1 ? cols[descIdx] || '' : '',
         categorie: catIdx !== -1 ? cols[catIdx] || '' : '',
+        statut_produit: 'Normal'
       }
     }).filter(r => r.nom)
 
-    if (rows.length === 0) {
-      alert('Aucun produit trouvé dans le fichier')
-      setImporting(false)
-      return
-    }
-
+    if (rows.length === 0) { alert('Aucun produit trouvé'); setImporting(false); return }
     const { error } = await supabase.from('produits').insert(rows)
-    if (error) {
-      alert('Erreur lors de l\'import: ' + error.message)
-    } else {
-      setSuccessMsg(`✅ ${rows.length} produits importés avec succès !`)
-      setTimeout(() => setSuccessMsg(''), 4000)
-    }
-
+    if (error) { alert('Erreur: ' + error.message) }
+    else { setSuccessMsg(`✅ ${rows.length} produits importés !`); setTimeout(() => setSuccessMsg(''), 4000) }
     setImporting(false)
     fileRef.current.value = ''
     fetchProduits()
+  }
+
+  const getStatutStyle = (statut) => {
+    if (statut === 'Éliminé de gamme') return 'bg-orange-100 text-orange-600'
+    if (statut === 'Arrêt de distribution') return 'bg-rose-100 text-rose-600'
+    return 'bg-teal-100 text-teal-600'
   }
 
   const produitsFiltres = produits.filter(p =>
@@ -126,7 +141,7 @@ export default function GestionProduits({ onBack }) {
           <h1 className="text-white font-black">Produits du labo</h1>
         </div>
         <button
-          onClick={() => { setShowForm(true); setEditing(null); setForm({ nom: '', description: '', categorie: '', categorie_autre: '' }) }}
+          onClick={() => { setShowForm(true); setEditing(null); setForm({ nom: '', description: '', categorie: '', categorie_autre: '', statut_produit: 'Normal' }) }}
           className="bg-teal-400 text-blue-950 px-4 py-2 rounded-xl font-black text-xs"
         >
           + Ajouter
@@ -137,15 +152,9 @@ export default function GestionProduits({ onBack }) {
       <div className="mx-6 mt-4 bg-white rounded-2xl p-4">
         <p className="text-xs font-black text-blue-950 uppercase tracking-wider mb-2">📥 Importer depuis Excel / CSV</p>
         <p className="text-xs text-slate-400 mb-3">
-          Format attendu : colonnes <strong>nom</strong>, <strong>description</strong>, <strong>categorie</strong> (séparateur virgule ou point-virgule)
+          Colonnes : <strong>nom</strong>, <strong>description</strong>, <strong>categorie</strong>
         </p>
-        <input
-          ref={fileRef}
-          type="file"
-          accept=".csv,.txt"
-          onChange={handleCSV}
-          className="hidden"
-        />
+        <input ref={fileRef} type="file" accept=".csv,.txt" onChange={handleCSV} className="hidden" />
         <button
           onClick={() => fileRef.current.click()}
           disabled={importing}
@@ -171,9 +180,25 @@ export default function GestionProduits({ onBack }) {
         />
       </div>
 
-      {/* Stats */}
-      <div className="mx-6 mt-3">
-        <p className="text-xs text-slate-400 font-bold">{produitsFiltres.length} produit{produitsFiltres.length > 1 ? 's' : ''} {search ? 'trouvé' + (produitsFiltres.length > 1 ? 's' : '') : 'au total'}</p>
+      {/* Barre de sélection multiple */}
+      <div className="mx-6 mt-3 flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <button
+            onClick={toggleSelectAll}
+            className="text-xs font-bold text-slate-500 underline"
+          >
+            {selected.length === produitsFiltres.length && produitsFiltres.length > 0 ? 'Tout désélectionner' : 'Tout sélectionner'}
+          </button>
+          <p className="text-xs text-slate-400">{produitsFiltres.length} produit{produitsFiltres.length > 1 ? 's' : ''}</p>
+        </div>
+        {selected.length > 0 && (
+          <button
+            onClick={handleDeleteSelected}
+            className="bg-rose-500 text-white px-4 py-2 rounded-xl text-xs font-black"
+          >
+            🗑️ Supprimer {selected.length} sélectionné{selected.length > 1 ? 's' : ''}
+          </button>
+        )}
       </div>
 
       {/* Formulaire */}
@@ -185,7 +210,7 @@ export default function GestionProduits({ onBack }) {
             </h2>
             <div className="flex flex-col gap-4">
               <div>
-                <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Nom du produit *</label>
+                <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Nom *</label>
                 <input
                   value={form.nom}
                   onChange={(e) => set('nom', e.target.value)}
@@ -206,7 +231,7 @@ export default function GestionProduits({ onBack }) {
               </div>
               {form.categorie === 'Autre (à préciser)' && (
                 <div>
-                  <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Préciser la catégorie</label>
+                  <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Préciser</label>
                   <input
                     value={form.categorie_autre}
                     onChange={(e) => set('categorie_autre', e.target.value)}
@@ -216,12 +241,22 @@ export default function GestionProduits({ onBack }) {
                 </div>
               )}
               <div>
+                <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Statut du produit</label>
+                <select
+                  value={form.statut_produit}
+                  onChange={(e) => set('statut_produit', e.target.value)}
+                  className="w-full mt-1 p-3 rounded-xl border border-slate-200 bg-slate-50 text-sm"
+                >
+                  {STATUTS.map((s) => <option key={s}>{s}</option>)}
+                </select>
+              </div>
+              <div>
                 <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Description</label>
                 <textarea
                   value={form.description}
                   onChange={(e) => set('description', e.target.value)}
                   className="w-full mt-1 p-3 rounded-xl border border-slate-200 bg-slate-50 text-sm h-20 resize-none"
-                  placeholder="Description du produit..."
+                  placeholder="Description..."
                 />
               </div>
               <div className="flex gap-3">
@@ -252,20 +287,34 @@ export default function GestionProduits({ onBack }) {
           </div>
         ) : (
           produitsFiltres.map((p) => (
-            <div key={p.id} className="bg-white rounded-2xl p-4">
-              <div className="flex items-start justify-between gap-3">
-                <div className="flex-1">
+            <div
+              key={p.id}
+              className={`bg-white rounded-2xl p-4 border-2 transition-colors ${
+                selected.includes(p.id) ? 'border-teal-400' : 'border-transparent'
+              }`}
+            >
+              <div className="flex items-start gap-3">
+                <input
+                  type="checkbox"
+                  checked={selected.includes(p.id)}
+                  onChange={() => toggleSelect(p.id)}
+                  className="mt-1 w-4 h-4 accent-teal-500"
+                />
+                <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 flex-wrap">
-                    <p className="font-black text-blue-950">{p.nom}</p>
+                    <p className={`font-black text-blue-950 ${p.statut_produit !== 'Normal' ? 'line-through opacity-60' : ''}`}>
+                      {p.nom}
+                    </p>
                     {p.categorie && (
-                      <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-teal-100 text-teal-600">
+                      <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-blue-100 text-blue-600">
                         {p.categorie}
                       </span>
                     )}
+                    <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${getStatutStyle(p.statut_produit || 'Normal')}`}>
+                      {p.statut_produit || 'Normal'}
+                    </span>
                   </div>
-                  {p.description && (
-                    <p className="text-xs text-slate-400 mt-1">{p.description}</p>
-                  )}
+                  {p.description && <p className="text-xs text-slate-400 mt-1">{p.description}</p>}
                 </div>
                 <div className="flex gap-2 flex-shrink-0">
                   <button onClick={() => handleEdit(p)} className="bg-blue-50 text-blue-600 px-3 py-1.5 rounded-lg text-xs font-bold">✏️</button>

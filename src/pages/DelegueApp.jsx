@@ -326,7 +326,7 @@ export default function DelegueApp({ session, profile }) {
                   value=""
                 >
                   <option value="">Sélectionner un produit...</option>
-                  {produits.filter(p => !form.produits_ids.includes(p.id)).map((p) => (
+                  {produits.filter(p => !form.produits_ids.includes(p.id) && (!p.statut_produit || p.statut_produit === 'Normal')).map((p) => (
                     <option key={p.id} value={p.id}>
                       {p.nom}{p.categorie ? ` — ${p.categorie}` : ''}
                     </option>
