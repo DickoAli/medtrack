@@ -48,7 +48,7 @@ export default function App() {
 
   if (!profile) return (
     <div className="min-h-screen bg-blue-950 flex items-center justify-center">
-      <p className="text-teal-400 font-bold">Chargement...</p>
+      <p className="text-teal-400 font-bold">Chargement du profil...</p>
     </div>
   )
 
