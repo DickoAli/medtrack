@@ -107,7 +107,34 @@ export default function GestionDelegues({ onBack }) {
     fetchDelegues()
   }
 
-  const ZONES = ['Alger Centre', 'Blida', 'Bab Ezzouar', 'Hussein Dey', 'Oran', 'Constantine', 'Autre']
+  const ZONES = [
+  // District de Bamako
+  'Bamako - Commune I',
+  'Bamako - Commune II',
+  'Bamako - Commune III',
+  'Bamako - Commune IV',
+  'Bamako - Commune V',
+  'Bamako - Commune VI',
+  // Régions du Mali
+  'Kayes',
+  'Koulikoro',
+  'Sikasso',
+  'Ségou',
+  'Mopti',
+  'Tombouctou',
+  'Gao',
+  'Kidal',
+  'Ménaka',
+  'Taoudénit',
+   'Nioro',
+    'Douentza',
+     'Bandiagara',
+      'Taoudénit',
+
+  'Autre (à préciser)',
+
+
+]
 
   if (loading) return (
     <div className="min-h-screen bg-slate-100 flex items-center justify-center">
