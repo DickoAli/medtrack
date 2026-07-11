@@ -26,48 +26,33 @@ export default function GestionDelegues({ onBack }) {
 
   const set = (k, v) => setForm((f) => ({ ...f, [k]: v }))
 
-  const handleSave = async () => {
-    if (!form.prenom || !form.nom || !form.email) {
-      alert('Prénom, nom et email sont obligatoires')
-      return
-    }
-    setSaving(true)
+  // Créer compte auth
+const { data: authData, error: authError } = await supabase.auth.signUp({
+  email: form.email,
+  password: form.password || 'delegue123',
+})
 
-    if (editing) {
-      // Modifier délégué existant
-      await supabase
-        .from('delegates')
-        .update({ prenom: form.prenom, nom: form.nom, telephone: form.telephone, zone: form.zone })
-        .eq('id', editing)
-    } else {
-      // Créer compte auth
-      const { data: authData, error: authError } = await supabase.auth.signUp({
-        email: form.email,
-        password: form.password || 'delegue123',
-      })
+if (authError) {
+  alert('Erreur: ' + authError.message)
+  setSaving(false)
+  return
+}
 
-      if (authError) {
-        alert('Erreur: ' + authError.message)
-        setSaving(false)
-        return
-      }
+// Créer délégué
+const { data: delegueData } = await supabase
+  .from('delegates')
+  .insert({ prenom: form.prenom, nom: form.nom, email: form.email, telephone: form.telephone, zone: form.zone })
+  .select()
+  .single()
 
-      // Créer délégué
-      const { data: delegueData } = await supabase
-        .from('delegates')
-        .insert({ prenom: form.prenom, nom: form.nom, email: form.email, telephone: form.telephone, zone: form.zone })
-        .select()
-        .single()
-
-      // Créer profil
-      if (authData.user && delegueData) {
-        await supabase.from('profiles').insert({
-          id: authData.user.id,
-          role: 'delegue',
-          delegate_id: delegueData.id
-        })
-      }
-    }
+// Créer profil lié
+if (authData.user && delegueData) {
+  await supabase.from('profiles').insert({
+    id: authData.user.id,
+    role: 'delegue',
+    delegate_id: delegueData.id
+  })
+}
 
     setSaving(false)
     setShowForm(false)
