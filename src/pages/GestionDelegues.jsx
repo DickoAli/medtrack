@@ -2,9 +2,17 @@ import { useState, useEffect } from 'react'
 import { supabase } from '../supabase'
 import { createClient } from '@supabase/supabase-js'
 
-const supabaseAdmin = createClient(
+// Client isolé pour créer des comptes sans affecter la session courante
+const supabaseSecondary = createClient(
   import.meta.env.VITE_SUPABASE_URL,
-  import.meta.env.VITE_SUPABASE_ANON_KEY
+  import.meta.env.VITE_SUPABASE_ANON_KEY,
+  {
+    auth: {
+      storageKey: 'supabase-secondary',
+      autoRefreshToken: false,
+      persistSession: false
+    }
+  }
 )
 
 export default function GestionDelegues({ onBack }) {
@@ -13,6 +21,7 @@ export default function GestionDelegues({ onBack }) {
   const [showForm, setShowForm] = useState(false)
   const [editing, setEditing] = useState(null)
   const [saving, setSaving] = useState(false)
+  const [successMsg, setSuccessMsg] = useState('')
   const [form, setForm] = useState({
     prenom: '', nom: '', email: '', telephone: '', zone: '', password: ''
   })
@@ -32,48 +41,57 @@ export default function GestionDelegues({ onBack }) {
 
   const set = (k, v) => setForm((f) => ({ ...f, [k]: v }))
 
-  // Sauvegarder session manager
-const { data: { session: managerSession } } = await supabase.auth.getSession()
+  const handleSave = async () => {
+    if (!form.prenom || !form.nom || !form.email) {
+      alert('Prénom, nom et email sont obligatoires')
+      return
+    }
+    setSaving(true)
 
-// Créer compte auth
-const { data: authData, error: authError } = await supabaseAdmin.auth.signUp({
-  email: form.email,
-  password: form.password || 'delegue123',
-})
+    if (editing) {
+      await supabase
+        .from('delegates')
+        .update({ prenom: form.prenom, nom: form.nom, telephone: form.telephone, zone: form.zone })
+        .eq('id', editing)
+    } else {
+      // Créer compte avec client secondaire isolé
+      const { data: authData, error: authError } = await supabaseSecondary.auth.signUp({
+        email: form.email,
+        password: form.password || 'delegue123',
+      })
 
-if (authError) {
-  alert('Erreur: ' + authError.message)
-  setSaving(false)
-  return
-}
+      if (authError) {
+        alert('Erreur: ' + authError.message)
+        setSaving(false)
+        return
+      }
 
-// Créer délégué
-const { data: delegueData } = await supabase
-  .from('delegates')
-  .insert({ prenom: form.prenom, nom: form.nom, email: form.email, telephone: form.telephone, zone: form.zone })
-  .select()
-  .single()
+      // Créer délégué
+      const { data: delegueData } = await supabase
+        .from('delegates')
+        .insert({ prenom: form.prenom, nom: form.nom, email: form.email, telephone: form.telephone, zone: form.zone })
+        .select()
+        .single()
 
-// Créer profil lié
-if (authData.user && delegueData) {
-  await supabase.from('profiles').insert({
-    id: authData.user.id,
-    role: 'delegue',
-    delegate_id: delegueData.id
-  })
-}
+      // Créer profil lié
+      if (authData.user && delegueData) {
+        await supabase.from('profiles').insert({
+          id: authData.user.id,
+          role: 'delegue',
+          delegate_id: delegueData.id
+        })
+      }
 
-// Restaurer session manager
-if (managerSession) {
-  await supabase.auth.setSession({
-    access_token: managerSession.access_token,
-    refresh_token: managerSession.refresh_token
-  })
-}
+      // Déconnecter le client secondaire
+      await supabaseSecondary.auth.signOut()
+    }
+
     setSaving(false)
     setShowForm(false)
     setEditing(null)
     setForm({ prenom: '', nom: '', email: '', telephone: '', zone: '', password: '' })
+    setSuccessMsg('Délégué créé avec succès !')
+    setTimeout(() => setSuccessMsg(''), 3000)
     fetchDelegues()
   }
 
@@ -112,7 +130,12 @@ if (managerSession) {
         </button>
       </div>
 
-      {/* Formulaire */}
+      {successMsg && (
+        <div className="mx-6 mt-4 bg-teal-50 border border-teal-200 rounded-2xl p-4 text-center">
+          <p className="text-teal-600 font-black">✅ {successMsg}</p>
+        </div>
+      )}
+
       {showForm && (
         <div className="fixed inset-0 bg-blue-950/60 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-2xl p-6 w-full max-w-sm shadow-2xl max-h-screen overflow-y-auto">
@@ -201,7 +224,7 @@ if (managerSession) {
                   disabled={saving}
                   className="flex-1 bg-teal-400 text-blue-950 font-black py-3 rounded-xl text-sm"
                 >
-                  {saving ? '...' : 'Enregistrer'}
+                  {saving ? 'Création...' : 'Enregistrer'}
                 </button>
               </div>
             </div>
@@ -209,7 +232,6 @@ if (managerSession) {
         </div>
       )}
 
-      {/* Liste délégués */}
       <div className="p-6 flex flex-col gap-3">
         {delegues.length === 0 ? (
           <div className="bg-white rounded-2xl p-8 text-center">
