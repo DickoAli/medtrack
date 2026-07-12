@@ -146,13 +146,13 @@ if (page === 'produits') return (
   onClick={() => setPage('stats-avancees')}
   className="w-full bg-indigo-600 text-white font-black py-4 rounded-2xl text-sm hover:bg-indigo-500 transition-colors"
 >
-  📈 Statistiques avancées
   <button
   onClick={() => setPage('stats-avancees')}
   className="w-full bg-indigo-600 text-white font-black py-4 rounded-2xl text-sm hover:bg-indigo-500 transition-colors"
 >
   📈 Statistiques avancées
 </button>
+  
 </button>
 </div>
 
