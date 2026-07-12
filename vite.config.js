@@ -9,7 +9,6 @@ export default defineConfig({
     tailwindcss(),
     VitePWA({
       registerType: 'autoUpdate',
-      includeAssets: ['favicon.ico'],
       manifest: {
         name: 'MedTrack',
         short_name: 'MedTrack',
@@ -20,18 +19,19 @@ export default defineConfig({
         orientation: 'portrait',
         scope: '/',
         start_url: '/',
-       icons: [
-  {
-    src: '/favicon.svg',
-    sizes: '192x192',
-    type: 'image/svg+xml'
-  },
-  {
-    src: '/favicon.svg',
-    sizes: '512x512',
-    type: 'image/svg+xml'
-  }
-]
+        icons: [
+          {
+            src: '/favicon.svg',
+            sizes: '192x192',
+            type: 'image/svg+xml'
+          },
+          {
+            src: '/favicon.svg',
+            sizes: '512x512',
+            type: 'image/svg+xml'
+          }
+        ]
+      },
       workbox: {
         globPatterns: ['**/*.{js,css,html,ico,png,svg}'],
         runtimeCaching: [
@@ -42,7 +42,7 @@ export default defineConfig({
               cacheName: 'supabase-cache',
               expiration: {
                 maxEntries: 100,
-                maxAgeSeconds: 60 * 60 * 24
+                maxAgeSeconds: 86400
               },
               cacheableResponse: {
                 statuses: [0, 200]
