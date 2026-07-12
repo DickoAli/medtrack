@@ -1,3 +1,4 @@
+import StatistiquesAvancees from './StatistiquesAvancees'
 import Rapports from './Rapports'
 import GestionDelegues from './GestionDelegues'
 import GestionProduits from './GestionProduits'
@@ -51,6 +52,9 @@ export default function Dashboard({ session, profile }) {
   )
   if (page === 'rapports') return (
   <Rapports onBack={() => setPage('dashboard')} />
+)
+if (page === 'stats-avancees') return (
+  <StatistiquesAvancees onBack={() => setPage('dashboard')} />
 )
   if (page === 'delegues') return (
   <GestionDelegues onBack={() => { setPage('dashboard'); fetchData() }} />
@@ -138,6 +142,18 @@ if (page === 'produits') return (
   >
     📥 Rapports & Export Excel
   </button>
+  <button
+  onClick={() => setPage('stats-avancees')}
+  className="w-full bg-indigo-600 text-white font-black py-4 rounded-2xl text-sm hover:bg-indigo-500 transition-colors"
+>
+  📈 Statistiques avancées
+  <button
+  onClick={() => setPage('stats-avancees')}
+  className="w-full bg-indigo-600 text-white font-black py-4 rounded-2xl text-sm hover:bg-indigo-500 transition-colors"
+>
+  📈 Statistiques avancées
+</button>
+</button>
 </div>
 
       {/* Visites planifiées */}
