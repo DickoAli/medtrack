@@ -20,19 +20,18 @@ export default defineConfig({
         orientation: 'portrait',
         scope: '/',
         start_url: '/',
-        icons: [
-          {
-            src: 'https://via.placeholder.com/192x192/00C9B1/0B1F3A?text=M',
-            sizes: '192x192',
-            type: 'image/png'
-          },
-          {
-            src: 'https://via.placeholder.com/512x512/00C9B1/0B1F3A?text=M',
-            sizes: '512x512',
-            type: 'image/png'
-          }
-        ]
-      },
+       icons: [
+  {
+    src: '/favicon.svg',
+    sizes: '192x192',
+    type: 'image/svg+xml'
+  },
+  {
+    src: '/favicon.svg',
+    sizes: '512x512',
+    type: 'image/svg+xml'
+  }
+]
       workbox: {
         globPatterns: ['**/*.{js,css,html,ico,png,svg}'],
         runtimeCaching: [
