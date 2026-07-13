@@ -5,13 +5,12 @@ import { saveVisiteLocally, getPendingVisites, deleteLocalVisite, countPendingVi
 export default function DelegueApp({ session, profile }) {
   const [visites, setVisites] = useState([])
   const [produits, setProduits] = useState([])
-  const [medecins, setMedecins] = useState([])
   const [loading, setLoading] = useState(true)
   const [page, setPage] = useState('accueil')
   const [position, setPosition] = useState(null)
-  const watchRef = useRef(null)
   const [pendingCount, setPendingCount] = useState(0)
-const [syncing, setSyncing] = useState(false)
+  const [syncing, setSyncing] = useState(false)
+  const watchRef = useRef(null)
 
   const [form, setForm] = useState({
     medecin_id: '',
@@ -28,17 +27,6 @@ const [syncing, setSyncing] = useState(false)
   const [saving, setSaving] = useState(false)
   const [success, setSuccess] = useState(false)
 
- useEffect(() => {
-    fetchData()
-    startTracking()
-    checkPending()
-    window.addEventListener('online', syncPendingVisites)
-    return () => {
-      if (watchRef.current) navigator.geolocation.clearWatch(watchRef.current)
-      window.removeEventListener('online', syncPendingVisites)
-    }
-  }, [])
-
   const fetchData = async () => {
     const { data: v } = await supabase
       .from('visites')
@@ -46,15 +34,12 @@ const [syncing, setSyncing] = useState(false)
       .eq('delegate_id', profile.delegate_id)
       .order('created_at', { ascending: false })
 
-    const { data: m } = await supabase.from('medecins').select('*')
     const { data: p } = await supabase.from('produits').select('*').order('nom')
 
     setVisites(v || [])
-    setMedecins(m || [])
     setProduits(p || [])
     setLoading(false)
   }
-  
 
   const startTracking = () => {
     if (!navigator.geolocation) return
@@ -72,6 +57,46 @@ const [syncing, setSyncing] = useState(false)
       { enableHighAccuracy: true, maximumAge: 10000, timeout: 5000 }
     )
   }
+
+  const checkPending = async () => {
+    const count = await countPendingVisites()
+    setPendingCount(count)
+  }
+
+  const syncPendingVisites = async () => {
+    if (!isOnline()) { alert('Pas de connexion internet'); return }
+    setSyncing(true)
+    const pending = await getPendingVisites()
+    let synced = 0
+    for (const v of pending) {
+      const { local_id, synced: _, produits_ids, ...visite } = v
+      const { data, error } = await supabase.from('visites').insert(visite).select().single()
+      if (!error && data) {
+        if (produits_ids?.length > 0) {
+          await supabase.from('visite_produits').insert(
+            produits_ids.map(pid => ({ visite_id: data.id, produit_id: pid }))
+          )
+        }
+        await deleteLocalVisite(local_id)
+        synced++
+      }
+    }
+    setSyncing(false)
+    setPendingCount(0)
+    fetchData()
+    alert(`✅ ${synced} visite(s) synchronisée(s) !`)
+  }
+
+  useEffect(() => {
+    fetchData()
+    startTracking()
+    checkPending()
+    window.addEventListener('online', syncPendingVisites)
+    return () => {
+      if (watchRef.current) navigator.geolocation.clearWatch(watchRef.current)
+      window.removeEventListener('online', syncPendingVisites)
+    }
+  }, [])
 
   const set = (k, v) => setForm((f) => ({ ...f, [k]: v }))
 
@@ -110,7 +135,6 @@ const [syncing, setSyncing] = useState(false)
     }
 
     if (!isOnline()) {
-      // Sauvegarder localement
       await saveVisiteLocally(visiteData)
       await checkPending()
       setSaving(false)
@@ -124,7 +148,6 @@ const [syncing, setSyncing] = useState(false)
       return
     }
 
-    // En ligne — sauvegarder directement
     const { data: saved } = await supabase.from('visites').insert(visiteData).select().single()
 
     if (saved && form.produits_ids.length > 0) {
@@ -181,36 +204,36 @@ const [syncing, setSyncing] = useState(false)
       </div>
 
       {/* GPS Status */}
-<div className={`px-6 py-2 text-xs font-bold flex items-center gap-2 ${position ? 'bg-teal-500' : 'bg-amber-500'}`}>
-  <span>{position ? '📍' : '⚠️'}</span>
-  <span className="text-white">
-    {position
-      ? `Position active · ${position.lat.toFixed(4)}, ${position.lng.toFixed(4)}`
-      : 'GPS en attente — activez la localisation'}
-  </span>
-</div>
+      <div className={`px-6 py-2 text-xs font-bold flex items-center gap-2 ${position ? 'bg-teal-500' : 'bg-amber-500'}`}>
+        <span>{position ? '📍' : '⚠️'}</span>
+        <span className="text-white">
+          {position
+            ? `Position active · ${position.lat.toFixed(4)}, ${position.lng.toFixed(4)}`
+            : 'GPS en attente — activez la localisation'}
+        </span>
+      </div>
 
-{/* Bannière hors ligne */}
-{!navigator.onLine && (
-  <div className="bg-rose-500 px-6 py-2 text-xs font-bold flex items-center gap-2">
-    <span>📵</span>
-    <span className="text-white">Hors ligne — les visites seront synchronisées au retour de la connexion</span>
-  </div>
-)}
+      {/* Bannière hors ligne */}
+      {!navigator.onLine && (
+        <div className="bg-rose-500 px-6 py-2 text-xs font-bold flex items-center gap-2">
+          <span>📵</span>
+          <span className="text-white">Hors ligne — visites sauvegardées localement</span>
+        </div>
+      )}
 
-{/* Bannière synchronisation */}
-{pendingCount > 0 && navigator.onLine && (
-  <div className="bg-amber-500 px-6 py-2 text-xs font-bold flex items-center justify-between">
-    <span className="text-white">⏳ {pendingCount} visite(s) en attente de synchronisation</span>
-    <button
-      onClick={syncPendingVisites}
-      disabled={syncing}
-      className="bg-white text-amber-600 px-3 py-1 rounded-lg text-xs font-black"
-    >
-      {syncing ? '...' : 'Sync'}
-    </button>
-  </div>
-)}
+      {/* Bannière synchronisation */}
+      {pendingCount > 0 && navigator.onLine && (
+        <div className="bg-amber-500 px-6 py-2 text-xs font-bold flex items-center justify-between">
+          <span className="text-white">⏳ {pendingCount} visite(s) en attente</span>
+          <button
+            onClick={syncPendingVisites}
+            disabled={syncing}
+            className="bg-white text-amber-600 px-3 py-1 rounded-lg text-xs font-black"
+          >
+            {syncing ? '...' : 'Sync'}
+          </button>
+        </div>
+      )}
 
       {/* Nav */}
       <div className="bg-white flex border-b border-slate-200">
@@ -284,7 +307,6 @@ const [syncing, setSyncing] = useState(false)
             </div>
           )}
 
-          {/* Type de visite */}
           <div>
             <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Type de visite</label>
             <select
@@ -309,7 +331,6 @@ const [syncing, setSyncing] = useState(false)
             </div>
           )}
 
-          {/* Type de lieu */}
           <div>
             <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Type de lieu *</label>
             <select
@@ -322,7 +343,6 @@ const [syncing, setSyncing] = useState(false)
             </select>
           </div>
 
-          {/* Contact */}
           <div>
             <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Nom du contact *</label>
             <input
@@ -352,15 +372,14 @@ const [syncing, setSyncing] = useState(false)
               value={form.telephone_contact}
               onChange={(e) => set('telephone_contact', e.target.value)}
               className="w-full mt-1 p-3 rounded-xl border border-slate-200 bg-white text-sm"
-              placeholder="0550000000"
+              placeholder="00223XXXXXXXX"
             />
           </div>
 
-          {/* Produits */}
           <div>
             <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Produits présentés *</label>
             {produits.length === 0 ? (
-              <p className="text-xs text-slate-400 mt-2">Aucun produit disponible — le manager doit en ajouter</p>
+              <p className="text-xs text-slate-400 mt-2">Aucun produit disponible</p>
             ) : (
               <div className="mt-2 flex flex-col gap-2">
                 <select
@@ -369,11 +388,13 @@ const [syncing, setSyncing] = useState(false)
                   value=""
                 >
                   <option value="">Sélectionner un produit...</option>
-                  {produits.filter(p => !form.produits_ids.includes(p.id) && (!p.statut_produit || p.statut_produit === 'Normal')).map((p) => (
-                    <option key={p.id} value={p.id}>
-                      {p.nom}{p.categorie ? ` — ${p.categorie}` : ''}
-                    </option>
-                  ))}
+                  {produits
+                    .filter(p => !form.produits_ids.includes(p.id) && (!p.statut_produit || p.statut_produit === 'Normal'))
+                    .map((p) => (
+                      <option key={p.id} value={p.id}>
+                        {p.nom}{p.categorie ? ` — ${p.categorie}` : ''}
+                      </option>
+                    ))}
                 </select>
                 {form.produits_ids.length > 0 && (
                   <div className="flex flex-wrap gap-2 mt-1">
@@ -392,7 +413,6 @@ const [syncing, setSyncing] = useState(false)
             )}
           </div>
 
-          {/* Statut */}
           {form.type === 'immediate' && (
             <div>
               <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Statut</label>
@@ -407,7 +427,6 @@ const [syncing, setSyncing] = useState(false)
             </div>
           )}
 
-          {/* Note */}
           <div>
             <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Note / Compte-rendu</label>
             <textarea
@@ -418,7 +437,6 @@ const [syncing, setSyncing] = useState(false)
             />
           </div>
 
-          {/* GPS */}
           <div className={`rounded-xl p-3 flex items-center gap-2 ${position ? 'bg-teal-50 border border-teal-200' : 'bg-amber-50 border border-amber-200'}`}>
             <span>{position ? '📍' : '⚠️'}</span>
             <p className="text-xs font-bold text-slate-600">
