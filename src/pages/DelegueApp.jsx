@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { supabase } from '../supabase'
+import { saveVisiteLocally, getPendingVisites, deleteLocalVisite, countPendingVisites, isOnline } from '../offline'
 
 export default function DelegueApp({ session, profile }) {
   const [visites, setVisites] = useState([])
@@ -9,6 +10,8 @@ export default function DelegueApp({ session, profile }) {
   const [page, setPage] = useState('accueil')
   const [position, setPosition] = useState(null)
   const watchRef = useRef(null)
+  const [pendingCount, setPendingCount] = useState(0)
+const [syncing, setSyncing] = useState(false)
 
   const [form, setForm] = useState({
     medecin_id: '',
@@ -25,11 +28,14 @@ export default function DelegueApp({ session, profile }) {
   const [saving, setSaving] = useState(false)
   const [success, setSuccess] = useState(false)
 
-  useEffect(() => {
+ useEffect(() => {
     fetchData()
     startTracking()
+    checkPending()
+    window.addEventListener('online', syncPendingVisites)
     return () => {
       if (watchRef.current) navigator.geolocation.clearWatch(watchRef.current)
+      window.removeEventListener('online', syncPendingVisites)
     }
   }, [])
 
@@ -48,6 +54,7 @@ export default function DelegueApp({ session, profile }) {
     setProduits(p || [])
     setLoading(false)
   }
+  
 
   const startTracking = () => {
     if (!navigator.geolocation) return
@@ -85,7 +92,7 @@ export default function DelegueApp({ session, profile }) {
 
     setSaving(true)
 
-    const { data: visiteData } = await supabase.from('visites').insert({
+    const visiteData = {
       delegate_id: profile.delegate_id,
       medecin_id: form.medecin_id || null,
       type_lieu: form.type_lieu,
@@ -99,14 +106,31 @@ export default function DelegueApp({ session, profile }) {
       longitude: form.type === 'immediate' ? position?.lng || null : null,
       type: form.type,
       date_prevue: form.date_prevue || null,
-    }).select().single()
+      produits_ids: form.produits_ids,
+    }
 
-    if (visiteData) {
-      const visite_produits = form.produits_ids.map(pid => ({
-        visite_id: visiteData.id,
-        produit_id: pid
-      }))
-      await supabase.from('visite_produits').insert(visite_produits)
+    if (!isOnline()) {
+      // Sauvegarder localement
+      await saveVisiteLocally(visiteData)
+      await checkPending()
+      setSaving(false)
+      setSuccess(true)
+      setForm({
+        medecin_id: '', produits_ids: [], type_lieu: '', nom_contact: '',
+        titre_contact: '', telephone_contact: '', statut: 'Réalisée',
+        note: '', type: 'immediate', date_prevue: ''
+      })
+      setTimeout(() => { setPage('accueil'); setSuccess(false) }, 1500)
+      return
+    }
+
+    // En ligne — sauvegarder directement
+    const { data: saved } = await supabase.from('visites').insert(visiteData).select().single()
+
+    if (saved && form.produits_ids.length > 0) {
+      await supabase.from('visite_produits').insert(
+        form.produits_ids.map(pid => ({ visite_id: saved.id, produit_id: pid }))
+      )
     }
 
     setSaving(false)
@@ -117,10 +141,7 @@ export default function DelegueApp({ session, profile }) {
       note: '', type: 'immediate', date_prevue: ''
     })
     fetchData()
-    setTimeout(() => {
-      setPage('accueil')
-      setSuccess(false)
-    }, 1500)
+    setTimeout(() => { setPage('accueil'); setSuccess(false) }, 1500)
   }
 
   if (loading) return (
@@ -160,14 +181,36 @@ export default function DelegueApp({ session, profile }) {
       </div>
 
       {/* GPS Status */}
-      <div className={`px-6 py-2 text-xs font-bold flex items-center gap-2 ${position ? 'bg-teal-500' : 'bg-amber-500'}`}>
-        <span>{position ? '📍' : '⚠️'}</span>
-        <span className="text-white">
-          {position
-            ? `Position active · ${position.lat.toFixed(4)}, ${position.lng.toFixed(4)}`
-            : 'GPS en attente — activez la localisation'}
-        </span>
-      </div>
+<div className={`px-6 py-2 text-xs font-bold flex items-center gap-2 ${position ? 'bg-teal-500' : 'bg-amber-500'}`}>
+  <span>{position ? '📍' : '⚠️'}</span>
+  <span className="text-white">
+    {position
+      ? `Position active · ${position.lat.toFixed(4)}, ${position.lng.toFixed(4)}`
+      : 'GPS en attente — activez la localisation'}
+  </span>
+</div>
+
+{/* Bannière hors ligne */}
+{!navigator.onLine && (
+  <div className="bg-rose-500 px-6 py-2 text-xs font-bold flex items-center gap-2">
+    <span>📵</span>
+    <span className="text-white">Hors ligne — les visites seront synchronisées au retour de la connexion</span>
+  </div>
+)}
+
+{/* Bannière synchronisation */}
+{pendingCount > 0 && navigator.onLine && (
+  <div className="bg-amber-500 px-6 py-2 text-xs font-bold flex items-center justify-between">
+    <span className="text-white">⏳ {pendingCount} visite(s) en attente de synchronisation</span>
+    <button
+      onClick={syncPendingVisites}
+      disabled={syncing}
+      className="bg-white text-amber-600 px-3 py-1 rounded-lg text-xs font-black"
+    >
+      {syncing ? '...' : 'Sync'}
+    </button>
+  </div>
+)}
 
       {/* Nav */}
       <div className="bg-white flex border-b border-slate-200">
