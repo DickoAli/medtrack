@@ -1,3 +1,4 @@
+import GestionLabos from './GestionLabos'
 import StatistiquesAvancees from './StatistiquesAvancees'
 import Rapports from './Rapports'
 import GestionDelegues from './GestionDelegues'
@@ -63,6 +64,9 @@ if (page === 'stats-avancees') return (
 if (page === 'produits') return (
   <GestionProduits onBack={() => setPage('dashboard')} />
 )
+if (page === 'labos') return (
+  <GestionLabos onBack={() => setPage('dashboard')} />
+)
 
   const todayStr = new Date().toISOString().slice(0, 10)
   const todayVisites = visites.filter((v) => v.created_at?.slice(0, 10) === todayStr)
@@ -118,6 +122,12 @@ if (page === 'produits') return (
   >
     🗺️ Carte des délégués
   </button>
+  <button
+  onClick={() => setPage('labos')}
+  className="w-full bg-cyan-600 text-white font-black py-4 rounded-2xl text-sm hover:bg-cyan-500 transition-colors"
+>
+  🧪 Laboratoires
+</button>
   <button
     onClick={() => setPage('statistiques')}
     className="w-full bg-purple-600 text-white font-black py-4 rounded-2xl text-sm hover:bg-purple-500 transition-colors"
