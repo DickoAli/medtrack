@@ -3,6 +3,7 @@ import { supabase } from '../supabase'
 
 export default function GestionProduits({ onBack }) {
   const [produits, setProduits] = useState([])
+  const [labos, setLabos] = useState([])
   const [loading, setLoading] = useState(true)
   const [showForm, setShowForm] = useState(false)
   const [editing, setEditing] = useState(null)
@@ -13,7 +14,7 @@ export default function GestionProduits({ onBack }) {
   const [selected, setSelected] = useState([])
   const fileRef = useRef()
   const [form, setForm] = useState({
-    nom: '', description: '', categorie: '', categorie_autre: '', statut_produit: 'Normal'
+    nom: '', description: '', categorie: '', categorie_autre: '', statut_produit: 'Normal', laboratoire_id: ''
   })
 
   const CATEGORIES = ['Cardiologie', 'Diabétologie', 'Oncologie', 'Neurologie', 'Immunologie', 'Autre (à préciser)']
@@ -26,6 +27,13 @@ export default function GestionProduits({ onBack }) {
     setProduits(data || [])
     setLoading(false)
   }
+  const fetchProduits = async () => {
+    const { data } = await supabase.from('produits').select('*, laboratoires(*)').order('nom')
+    const { data: l } = await supabase.from('laboratoires').select('*').order('nom')
+    setProduits(data || [])
+    setLabos(l || [])
+    setLoading(false)
+  }
 
   const set = (k, v) => setForm((f) => ({ ...f, [k]: v }))
 
@@ -35,16 +43,18 @@ export default function GestionProduits({ onBack }) {
     const categorieFinale = form.categorie === 'Autre (à préciser)' ? form.categorie_autre : form.categorie
 
     if (editing) {
-      await supabase.from('produits').update({
-        nom: form.nom, description: form.description,
-        categorie: categorieFinale, statut_produit: form.statut_produit
-      }).eq('id', editing)
+  await supabase.from('produits').update({
+    nom: form.nom, description: form.description,
+    categorie: categorieFinale, statut_produit: form.statut_produit,
+    laboratoire_id: form.laboratoire_id || null
+  }).eq('id', editing)
     } else {
-      await supabase.from('produits').insert({
-        nom: form.nom, description: form.description,
-        categorie: categorieFinale, statut_produit: form.statut_produit
-      })
-    }
+  await supabase.from('produits').insert({
+    nom: form.nom, description: form.description,
+    categorie: categorieFinale, statut_produit: form.statut_produit,
+    laboratoire_id: form.laboratoire_id || null
+  })
+}
     setSaving(false)
     setShowForm(false)
     setEditing(null)
@@ -229,6 +239,17 @@ export default function GestionProduits({ onBack }) {
                   {CATEGORIES.map((c) => <option key={c}>{c}</option>)}
                 </select>
               </div>
+              <div>
+  <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Laboratoire</label>
+  <select
+    value={form.laboratoire_id}
+    onChange={(e) => set('laboratoire_id', e.target.value)}
+    className="w-full mt-1 p-3 rounded-xl border border-slate-200 bg-slate-50 text-sm"
+  >
+    <option value="">Sélectionner un laboratoire</option>
+    {labos.map((l) => <option key={l.id} value={l.id}>{l.nom}</option>)}
+  </select>
+</div>
               {form.categorie === 'Autre (à préciser)' && (
                 <div>
                   <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Préciser</label>
@@ -310,6 +331,11 @@ export default function GestionProduits({ onBack }) {
                         {p.categorie}
                       </span>
                     )}
+                    {p.laboratoires?.nom && (
+  <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-cyan-100 text-cyan-600">
+    🧪 {p.laboratoires.nom}
+  </span>
+)}
                     <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${getStatutStyle(p.statut_produit || 'Normal')}`}>
                       {p.statut_produit || 'Normal'}
                     </span>
