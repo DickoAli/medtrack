@@ -37,18 +37,16 @@ export default function Carte({ onBack }) {
       .from('profiles')
       .select('*, delegates(*)')
       .eq('role', 'delegue')
+      .eq('agence_id', profile.agence_id)
       .not('last_lat', 'is', null)
     setPositions(data || [])
-    setDelegates(prev => {
-      const all = data || []
-      return all.map(p => p.delegates).filter(Boolean)
-    })
   }
 
   const fetchVisites = async () => {
     const { data } = await supabase
       .from('visites')
       .select('*, delegates(*), medecins(*)')
+      .eq('agence_id', profile.agence_id)
       .not('latitude', 'is', null)
       .order('created_at', { ascending: false })
     setVisites(data || [])

@@ -11,12 +11,18 @@ export default function Statistiques({ onBack }) {
     fetchData()
   }, [])
 
-  const fetchData = async () => {
-    const { data: d } = await supabase.from('delegates').select('*')
+ const fetchData = async () => {
+    const { data: d } = await supabase
+      .from('delegates')
+      .select('*')
+      .eq('agence_id', profile.agence_id)
+
     const { data: v } = await supabase
       .from('visites')
       .select('*, medecins(*)')
+      .eq('agence_id', profile.agence_id)
       .order('created_at', { ascending: false })
+
     setDelegates(d || [])
     setVisites(v || [])
     setLoading(false)
