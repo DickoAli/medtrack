@@ -16,13 +16,15 @@ const supabaseSecondary = createClient(
 
 export default function GestionDelegues({ onBack }) {
   const [delegues, setDelegues] = useState([])
+  const [labos, setLabos] = useState([])
   const [loading, setLoading] = useState(true)
   const [showForm, setShowForm] = useState(false)
   const [editing, setEditing] = useState(null)
   const [saving, setSaving] = useState(false)
   const [successMsg, setSuccessMsg] = useState('')
   const [form, setForm] = useState({
-    prenom: '', nom: '', email: '', telephone: '', zone: '', password: '', zone_autre: ''
+    prenom: '', nom: '', email: '', telephone: '',
+    zone: '', password: '', zone_autre: '', labos_ids: []
   })
 
   const ZONES = [
@@ -54,20 +56,29 @@ export default function GestionDelegues({ onBack }) {
     'Autre (à préciser)',
   ]
 
-  useEffect(() => {
-    fetchDelegues()
-  }, [])
+  useEffect(() => { fetchDelegues() }, [])
 
   const fetchDelegues = async () => {
     const { data } = await supabase
       .from('delegates')
-      .select('*')
+      .select('*, delegate_labos(*, laboratoires(*))')
       .order('created_at', { ascending: false })
+    const { data: l } = await supabase.from('laboratoires').select('*').order('nom')
     setDelegues(data || [])
+    setLabos(l || [])
     setLoading(false)
   }
 
   const set = (k, v) => setForm((f) => ({ ...f, [k]: v }))
+
+  const toggleLabo = (id) => {
+    setForm(f => ({
+      ...f,
+      labos_ids: f.labos_ids.includes(id)
+        ? f.labos_ids.filter(x => x !== id)
+        : [...f.labos_ids, id]
+    }))
+  }
 
   const handleSave = async () => {
     if (!form.prenom || !form.nom || !form.email) {
@@ -92,7 +103,19 @@ export default function GestionDelegues({ onBack }) {
           zone: zoneFinale
         })
         .eq('id', editing)
+
+      // Mettre à jour les labos
+      await supabase.from('delegate_labos').delete().eq('delegate_id', editing)
+      if (form.labos_ids.length > 0) {
+        await supabase.from('delegate_labos').insert(
+          form.labos_ids.map(lid => ({
+            delegate_id: editing,
+            laboratoire_id: lid
+          }))
+        )
+      }
     } else {
+      // Créer compte auth avec client secondaire
       const { data: authData, error: authError } = await supabaseSecondary.auth.signUp({
         email: form.email,
         password: form.password || 'delegue123',
@@ -104,6 +127,7 @@ export default function GestionDelegues({ onBack }) {
         return
       }
 
+      // Créer délégué
       const { data: delegueData } = await supabase
         .from('delegates')
         .insert({
@@ -116,12 +140,23 @@ export default function GestionDelegues({ onBack }) {
         .select()
         .single()
 
+      // Créer profil lié
       if (authData.user && delegueData) {
         await supabase.from('profiles').insert({
           id: authData.user.id,
           role: 'delegue',
           delegate_id: delegueData.id
         })
+
+        // Lier les laboratoires
+        if (form.labos_ids.length > 0) {
+          await supabase.from('delegate_labos').insert(
+            form.labos_ids.map(lid => ({
+              delegate_id: delegueData.id,
+              laboratoire_id: lid
+            }))
+          )
+        }
       }
 
       await supabaseSecondary.auth.signOut()
@@ -130,7 +165,10 @@ export default function GestionDelegues({ onBack }) {
     setSaving(false)
     setShowForm(false)
     setEditing(null)
-    setForm({ prenom: '', nom: '', email: '', telephone: '', zone: '', password: '', zone_autre: '' })
+    setForm({
+      prenom: '', nom: '', email: '', telephone: '',
+      zone: '', password: '', zone_autre: '', labos_ids: []
+    })
     setSuccessMsg('Délégué enregistré avec succès !')
     setTimeout(() => setSuccessMsg(''), 3000)
     fetchDelegues()
@@ -138,7 +176,16 @@ export default function GestionDelegues({ onBack }) {
 
   const handleEdit = (d) => {
     setEditing(d.id)
-    setForm({ prenom: d.prenom, nom: d.nom, email: d.email, telephone: d.telephone || '', zone: d.zone || '', password: '', zone_autre: '' })
+    setForm({
+      prenom: d.prenom,
+      nom: d.nom,
+      email: d.email,
+      telephone: d.telephone || '',
+      zone: d.zone || '',
+      password: '',
+      zone_autre: '',
+      labos_ids: d.delegate_labos?.map(dl => dl.laboratoire_id) || []
+    })
     setShowForm(true)
   }
 
@@ -165,7 +212,10 @@ export default function GestionDelegues({ onBack }) {
           onClick={() => {
             setShowForm(true)
             setEditing(null)
-            setForm({ prenom: '', nom: '', email: '', telephone: '', zone: '', password: '', zone_autre: '' })
+            setForm({
+              prenom: '', nom: '', email: '', telephone: '',
+              zone: '', password: '', zone_autre: '', labos_ids: []
+            })
           }}
           className="bg-teal-400 text-blue-950 px-4 py-2 rounded-xl font-black text-xs"
         >
@@ -239,7 +289,7 @@ export default function GestionDelegues({ onBack }) {
                   value={form.telephone}
                   onChange={(e) => set('telephone', e.target.value)}
                   className="w-full mt-1 p-3 rounded-xl border border-slate-200 bg-slate-50 text-sm"
-                  placeholder="0550000000"
+                  placeholder="00223XXXXXXXX"
                 />
               </div>
 
@@ -266,6 +316,30 @@ export default function GestionDelegues({ onBack }) {
                   />
                 </div>
               )}
+
+              <div>
+                <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Laboratoires assignés</label>
+                {labos.length === 0 ? (
+                  <p className="text-xs text-slate-400 mt-2">Aucun laboratoire — ajoutez-en d'abord</p>
+                ) : (
+                  <div className="mt-2 flex flex-wrap gap-2">
+                    {labos.map(l => (
+                      <button
+                        key={l.id}
+                        type="button"
+                        onClick={() => toggleLabo(l.id)}
+                        className={`px-3 py-2 rounded-xl text-xs font-bold border transition-colors ${
+                          form.labos_ids.includes(l.id)
+                            ? 'bg-cyan-500 text-white border-cyan-500'
+                            : 'bg-white text-slate-500 border-slate-200'
+                        }`}
+                      >
+                        🧪 {l.nom}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
 
               <div className="flex gap-3">
                 <button
@@ -312,6 +386,15 @@ export default function GestionDelegues({ onBack }) {
                       <span className="text-xs text-slate-400">{d.telephone}</span>
                     )}
                   </div>
+                  {d.delegate_labos?.length > 0 && (
+                    <div className="flex gap-1 flex-wrap mt-1">
+                      {d.delegate_labos.map(dl => (
+                        <span key={dl.id} className="text-xs font-bold px-2 py-0.5 rounded-full bg-cyan-100 text-cyan-600">
+                          🧪 {dl.laboratoires?.nom}
+                        </span>
+                      ))}
+                    </div>
+                  )}
                 </div>
                 <div className="flex gap-2 flex-shrink-0">
                   <button
