@@ -13,7 +13,7 @@ L.Icon.Default.mergeOptions({
 
 const COLORS = ['#00C9B1', '#F59E0B', '#A78BFA', '#F43F5E']
 
-export default function Carte({ onBack }) {
+export default function Carte({ onBack, profile }) {
   const [visites, setVisites] = useState([])
   const [delegates, setDelegates] = useState([])
   const [positions, setPositions] = useState([])
