@@ -3,6 +3,7 @@ import { supabase } from './supabase'
 import Login from './pages/Login'
 import Dashboard from './pages/Dashboard'
 import DelegueApp from './pages/DelegueApp'
+import SuperAdmin from './pages/SuperAdmin'
 
 export default function App() {
   const [session, setSession] = useState(null)
@@ -15,7 +16,6 @@ export default function App() {
       .select('*, delegates(*)')
       .eq('id', userId)
       .single()
-    console.log('profil chargé dans App:', data)
     setProfile(data)
   }
 
@@ -52,6 +52,7 @@ export default function App() {
     </div>
   )
 
+  if (profile.role_global === 'superadmin') return <SuperAdmin session={session} profile={profile} />
   if (profile.role === 'manager') return <Dashboard session={session} profile={profile} />
   if (profile.role === 'delegue') return <DelegueApp session={session} profile={profile} />
 
