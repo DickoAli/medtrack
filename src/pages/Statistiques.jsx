@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../supabase'
 
-export default function Statistiques({ onBack }) {
+export default function Statistiques({ onBack , profile }) {
   const [delegates, setDelegates] = useState([])
   const [visites, setVisites] = useState([])
   const [loading, setLoading] = useState(true)
