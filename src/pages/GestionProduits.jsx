@@ -14,7 +14,8 @@ export default function GestionProduits({ onBack }) {
   const [selected, setSelected] = useState([])
   const fileRef = useRef()
   const [form, setForm] = useState({
-    nom: '', description: '', categorie: '', categorie_autre: '', statut_produit: 'Normal', laboratoire_id: ''
+    nom: '', description: '', categorie: '', categorie_autre: '',
+    statut_produit: 'Normal', laboratoire_id: ''
   })
 
   const CATEGORIES = ['Cardiologie', 'Diabétologie', 'Oncologie', 'Neurologie', 'Immunologie', 'Autre (à préciser)']
@@ -22,11 +23,6 @@ export default function GestionProduits({ onBack }) {
 
   useEffect(() => { fetchProduits() }, [])
 
-  const fetchProduits = async () => {
-    const { data } = await supabase.from('produits').select('*').order('nom')
-    setProduits(data || [])
-    setLoading(false)
-  }
   const fetchProduits = async () => {
     const { data } = await supabase.from('produits').select('*, laboratoires(*)').order('nom')
     const { data: l } = await supabase.from('laboratoires').select('*').order('nom')
@@ -43,22 +39,22 @@ export default function GestionProduits({ onBack }) {
     const categorieFinale = form.categorie === 'Autre (à préciser)' ? form.categorie_autre : form.categorie
 
     if (editing) {
-  await supabase.from('produits').update({
-    nom: form.nom, description: form.description,
-    categorie: categorieFinale, statut_produit: form.statut_produit,
-    laboratoire_id: form.laboratoire_id || null
-  }).eq('id', editing)
+      await supabase.from('produits').update({
+        nom: form.nom, description: form.description,
+        categorie: categorieFinale, statut_produit: form.statut_produit,
+        laboratoire_id: form.laboratoire_id || null
+      }).eq('id', editing)
     } else {
-  await supabase.from('produits').insert({
-    nom: form.nom, description: form.description,
-    categorie: categorieFinale, statut_produit: form.statut_produit,
-    laboratoire_id: form.laboratoire_id || null
-  })
-}
+      await supabase.from('produits').insert({
+        nom: form.nom, description: form.description,
+        categorie: categorieFinale, statut_produit: form.statut_produit,
+        laboratoire_id: form.laboratoire_id || null
+      })
+    }
     setSaving(false)
     setShowForm(false)
     setEditing(null)
-    setForm({ nom: '', description: '', categorie: '', categorie_autre: '', statut_produit: 'Normal' })
+    setForm({ nom: '', description: '', categorie: '', categorie_autre: '', statut_produit: 'Normal', laboratoire_id: '' })
     setSuccessMsg('Produit enregistré !')
     setTimeout(() => setSuccessMsg(''), 3000)
     fetchProduits()
@@ -66,7 +62,12 @@ export default function GestionProduits({ onBack }) {
 
   const handleEdit = (p) => {
     setEditing(p.id)
-    setForm({ nom: p.nom, description: p.description || '', categorie: p.categorie || '', categorie_autre: '', statut_produit: p.statut_produit || 'Normal' })
+    setForm({
+      nom: p.nom, description: p.description || '',
+      categorie: p.categorie || '', categorie_autre: '',
+      statut_produit: p.statut_produit || 'Normal',
+      laboratoire_id: p.laboratoire_id || ''
+    })
     setShowForm(true)
   }
 
@@ -134,7 +135,8 @@ export default function GestionProduits({ onBack }) {
 
   const produitsFiltres = produits.filter(p =>
     p.nom.toLowerCase().includes(search.toLowerCase()) ||
-    p.categorie?.toLowerCase().includes(search.toLowerCase())
+    p.categorie?.toLowerCase().includes(search.toLowerCase()) ||
+    p.laboratoires?.nom?.toLowerCase().includes(search.toLowerCase())
   )
 
   if (loading) return (
@@ -151,7 +153,7 @@ export default function GestionProduits({ onBack }) {
           <h1 className="text-white font-black">Produits du labo</h1>
         </div>
         <button
-          onClick={() => { setShowForm(true); setEditing(null); setForm({ nom: '', description: '', categorie: '', categorie_autre: '', statut_produit: 'Normal' }) }}
+          onClick={() => { setShowForm(true); setEditing(null); setForm({ nom: '', description: '', categorie: '', categorie_autre: '', statut_produit: 'Normal', laboratoire_id: '' }) }}
           className="bg-teal-400 text-blue-950 px-4 py-2 rounded-xl font-black text-xs"
         >
           + Ajouter
@@ -161,9 +163,7 @@ export default function GestionProduits({ onBack }) {
       {/* Import CSV */}
       <div className="mx-6 mt-4 bg-white rounded-2xl p-4">
         <p className="text-xs font-black text-blue-950 uppercase tracking-wider mb-2">📥 Importer depuis Excel / CSV</p>
-        <p className="text-xs text-slate-400 mb-3">
-          Colonnes : <strong>nom</strong>, <strong>description</strong>, <strong>categorie</strong>
-        </p>
+        <p className="text-xs text-slate-400 mb-3">Colonnes : <strong>nom</strong>, <strong>description</strong>, <strong>categorie</strong></p>
         <input ref={fileRef} type="file" accept=".csv,.txt" onChange={handleCSV} className="hidden" />
         <button
           onClick={() => fileRef.current.click()}
@@ -186,17 +186,14 @@ export default function GestionProduits({ onBack }) {
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           className="w-full p-3 rounded-xl border border-slate-200 bg-white text-sm"
-          placeholder="🔍 Rechercher un produit..."
+          placeholder="🔍 Rechercher un produit ou laboratoire..."
         />
       </div>
 
-      {/* Barre de sélection multiple */}
+      {/* Barre sélection */}
       <div className="mx-6 mt-3 flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <button
-            onClick={toggleSelectAll}
-            className="text-xs font-bold text-slate-500 underline"
-          >
+          <button onClick={toggleSelectAll} className="text-xs font-bold text-slate-500 underline">
             {selected.length === produitsFiltres.length && produitsFiltres.length > 0 ? 'Tout désélectionner' : 'Tout sélectionner'}
           </button>
           <p className="text-xs text-slate-400">{produitsFiltres.length} produit{produitsFiltres.length > 1 ? 's' : ''}</p>
@@ -206,7 +203,7 @@ export default function GestionProduits({ onBack }) {
             onClick={handleDeleteSelected}
             className="bg-rose-500 text-white px-4 py-2 rounded-xl text-xs font-black"
           >
-            🗑️ Supprimer {selected.length} sélectionné{selected.length > 1 ? 's' : ''}
+            🗑️ Supprimer {selected.length}
           </button>
         )}
       </div>
@@ -229,6 +226,17 @@ export default function GestionProduits({ onBack }) {
                 />
               </div>
               <div>
+                <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Laboratoire</label>
+                <select
+                  value={form.laboratoire_id}
+                  onChange={(e) => set('laboratoire_id', e.target.value)}
+                  className="w-full mt-1 p-3 rounded-xl border border-slate-200 bg-slate-50 text-sm"
+                >
+                  <option value="">Sélectionner un laboratoire</option>
+                  {labos.map((l) => <option key={l.id} value={l.id}>{l.nom}</option>)}
+                </select>
+              </div>
+              <div>
                 <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Catégorie</label>
                 <select
                   value={form.categorie}
@@ -239,17 +247,6 @@ export default function GestionProduits({ onBack }) {
                   {CATEGORIES.map((c) => <option key={c}>{c}</option>)}
                 </select>
               </div>
-              <div>
-  <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Laboratoire</label>
-  <select
-    value={form.laboratoire_id}
-    onChange={(e) => set('laboratoire_id', e.target.value)}
-    className="w-full mt-1 p-3 rounded-xl border border-slate-200 bg-slate-50 text-sm"
-  >
-    <option value="">Sélectionner un laboratoire</option>
-    {labos.map((l) => <option key={l.id} value={l.id}>{l.nom}</option>)}
-  </select>
-</div>
               {form.categorie === 'Autre (à préciser)' && (
                 <div>
                   <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Préciser</label>
@@ -310,9 +307,7 @@ export default function GestionProduits({ onBack }) {
           produitsFiltres.map((p) => (
             <div
               key={p.id}
-              className={`bg-white rounded-2xl p-4 border-2 transition-colors ${
-                selected.includes(p.id) ? 'border-teal-400' : 'border-transparent'
-              }`}
+              className={`bg-white rounded-2xl p-4 border-2 transition-colors ${selected.includes(p.id) ? 'border-teal-400' : 'border-transparent'}`}
             >
               <div className="flex items-start gap-3">
                 <input
@@ -326,16 +321,16 @@ export default function GestionProduits({ onBack }) {
                     <p className={`font-black text-blue-950 ${p.statut_produit !== 'Normal' ? 'line-through opacity-60' : ''}`}>
                       {p.nom}
                     </p>
+                    {p.laboratoires?.nom && (
+                      <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-cyan-100 text-cyan-600">
+                        🧪 {p.laboratoires.nom}
+                      </span>
+                    )}
                     {p.categorie && (
                       <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-blue-100 text-blue-600">
                         {p.categorie}
                       </span>
                     )}
-                    {p.laboratoires?.nom && (
-  <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-cyan-100 text-cyan-600">
-    🧪 {p.laboratoires.nom}
-  </span>
-)}
                     <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${getStatutStyle(p.statut_produit || 'Normal')}`}>
                       {p.statut_produit || 'Normal'}
                     </span>
