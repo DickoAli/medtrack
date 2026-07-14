@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { supabase } from '../supabase'
 
-export default function GestionProduits({ onBack }) {
+export default function GestionProduits({ onBack, profile }) {
   const [produits, setProduits] = useState([])
   const [labos, setLabos] = useState([])
   const [loading, setLoading] = useState(true)
@@ -123,7 +123,8 @@ export default function GestionProduits({ onBack }) {
         nom: cols[nomIdx !== -1 ? nomIdx : 0] || '',
         description: descIdx !== -1 ? cols[descIdx] || '' : '',
         categorie: catIdx !== -1 ? cols[catIdx] || '' : '',
-        statut_produit: 'Normal'
+        statut_produit: 'Normal',
+        agence_id: profile.agence_id
       }
     }).filter(r => r.nom)
 

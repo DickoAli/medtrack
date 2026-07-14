@@ -43,33 +43,36 @@ export default function Dashboard({ session, profile }) {
   )
 
   if (page === 'nouvelle-visite') return (
-    <NouvelleVisite onBack={() => { setPage('dashboard'); fetchData() }} />
+    <NouvelleVisite profile={profile} onBack={() => { setPage('dashboard'); fetchData() }} />
   )
 
   if (page === 'carte') return (
-    <Carte onBack={() => setPage('dashboard')} />
+    <Carte profile={profile} onBack={() => setPage('dashboard')} />
   )
 
   if (page === 'statistiques') return (
-    <Statistiques onBack={() => setPage('dashboard')} />
+    <Statistiques profile={profile} onBack={() => setPage('dashboard')} />
   )
+
   if (page === 'rapports') return (
-  <Rapports onBack={() => setPage('dashboard')} />
-)
-if (page === 'stats-avancees') return (
-  <StatistiquesAvancees onBack={() => setPage('dashboard')} />
-)
+    <Rapports profile={profile} onBack={() => setPage('dashboard')} />
+  )
+
+  if (page === 'stats-avancees') return (
+    <StatistiquesAvancees profile={profile} onBack={() => setPage('dashboard')} />
+  )
+
   if (page === 'delegues') return (
-  <GestionDelegues onBack={() => { setPage('dashboard'); fetchData() }} />
-)
+    <GestionDelegues profile={profile} onBack={() => { setPage('dashboard'); fetchData() }} />
+  )
 
-if (page === 'produits') return (
-  <GestionProduits onBack={() => setPage('dashboard')} />
-)
-if (page === 'labos') return (
-  <GestionLabos onBack={() => setPage('dashboard')} />
-)
+  if (page === 'produits') return (
+    <GestionProduits profile={profile} onBack={() => setPage('dashboard')} />
+  )
 
+  if (page === 'labos') return (
+    <GestionLabos profile={profile} onBack={() => setPage('dashboard')} />
+  )
   const todayStr = new Date().toISOString().slice(0, 10)
   const todayVisites = visites.filter((v) => v.created_at?.slice(0, 10) === todayStr)
   const planifiees = visites.filter((v) => v.statut === 'Planifiée')
