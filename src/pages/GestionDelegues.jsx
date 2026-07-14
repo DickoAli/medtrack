@@ -14,7 +14,7 @@ const supabaseSecondary = createClient(
   }
 )
 
-export default function GestionDelegues({ onBack }) {
+export default function GestionDelegues({ onBack, profile }) {
   const [delegues, setDelegues] = useState([])
   const [labos, setLabos] = useState([])
   const [loading, setLoading] = useState(true)
@@ -62,8 +62,13 @@ export default function GestionDelegues({ onBack }) {
     const { data } = await supabase
       .from('delegates')
       .select('*, delegate_labos(*, laboratoires(*))')
+      .eq('agence_id', profile.agence_id)
       .order('created_at', { ascending: false })
-    const { data: l } = await supabase.from('laboratoires').select('*').order('nom')
+    const { data: l } = await supabase
+      .from('laboratoires')
+      .select('*')
+      .eq('agence_id', profile.agence_id)
+      .order('nom')
     setDelegues(data || [])
     setLabos(l || [])
     setLoading(false)
@@ -135,7 +140,8 @@ export default function GestionDelegues({ onBack }) {
           nom: form.nom,
           email: form.email,
           telephone: form.telephone,
-          zone: zoneFinale
+          zone: zoneFinale,
+          agence_id: profile.agence_id
         })
         .select()
         .single()
@@ -145,7 +151,8 @@ export default function GestionDelegues({ onBack }) {
         await supabase.from('profiles').insert({
           id: authData.user.id,
           role: 'delegue',
-          delegate_id: delegueData.id
+          delegate_id: delegueData.id,
+          agence_id: profile.agence_id
         })
 
         // Lier les laboratoires

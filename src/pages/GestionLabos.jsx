@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../supabase'
 
-export default function GestionLabos({ onBack }) {
+export default function GestionLabos({ onBack, profile }) {
   const [labos, setLabos] = useState([])
   const [loading, setLoading] = useState(true)
   const [showForm, setShowForm] = useState(false)
@@ -17,7 +17,8 @@ export default function GestionLabos({ onBack }) {
   const fetchLabos = async () => {
     const { data } = await supabase
       .from('laboratoires')
-      .select('*, produits(count)')
+      .select('*')
+      .eq('agence_id', profile.agence_id)
       .order('nom')
     setLabos(data || [])
     setLoading(false)
@@ -31,7 +32,10 @@ export default function GestionLabos({ onBack }) {
     if (editing) {
       await supabase.from('laboratoires').update(form).eq('id', editing)
     } else {
-      await supabase.from('laboratoires').insert(form)
+      await supabase.from('laboratoires').insert({
+        ...form,
+        agence_id: profile.agence_id
+      })
     }
     setSaving(false)
     setShowForm(false)

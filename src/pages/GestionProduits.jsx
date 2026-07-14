@@ -24,8 +24,16 @@ export default function GestionProduits({ onBack }) {
   useEffect(() => { fetchProduits() }, [])
 
   const fetchProduits = async () => {
-    const { data } = await supabase.from('produits').select('*, laboratoires(*)').order('nom')
-    const { data: l } = await supabase.from('laboratoires').select('*').order('nom')
+    const { data } = await supabase
+      .from('produits')
+      .select('*, laboratoires(*)')
+      .eq('agence_id', profile.agence_id)
+      .order('nom')
+    const { data: l } = await supabase
+      .from('laboratoires')
+      .select('*')
+      .eq('agence_id', profile.agence_id)
+      .order('nom')
     setProduits(data || [])
     setLabos(l || [])
     setLoading(false)
@@ -48,7 +56,8 @@ export default function GestionProduits({ onBack }) {
       await supabase.from('produits').insert({
         nom: form.nom, description: form.description,
         categorie: categorieFinale, statut_produit: form.statut_produit,
-        laboratoire_id: form.laboratoire_id || null
+        laboratoire_id: form.laboratoire_id || null,
+        agence_id: profile.agence_id
       })
     }
     setSaving(false)

@@ -3,7 +3,7 @@ import { supabase } from '../supabase'
 import * as XLSX from 'xlsx'
 import { saveAs } from 'file-saver'
 
-export default function Rapports({ onBack }) {
+export default function Rapports({ onBack, profile }) {
   const [delegates, setDelegates] = useState([])
   const [visites, setVisites] = useState([])
   const [loading, setLoading] = useState(true)
@@ -14,10 +14,15 @@ export default function Rapports({ onBack }) {
   useEffect(() => { fetchData() }, [])
 
   const fetchData = async () => {
-    const { data: d } = await supabase.from('delegates').select('*').order('nom')
+    const { data: d } = await supabase
+      .from('delegates')
+      .select('*')
+      .eq('agence_id', profile.agence_id)
+      .order('nom')
     const { data: v } = await supabase
       .from('visites')
       .select('*, delegates(*), medecins(*)')
+      .eq('agence_id', profile.agence_id)
       .order('created_at', { ascending: false })
     setDelegates(d || [])
     setVisites(v || [])

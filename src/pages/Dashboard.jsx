@@ -23,10 +23,12 @@ export default function Dashboard({ session, profile }) {
     const { data: delegatesData } = await supabase
       .from('delegates')
       .select('*')
+      .eq('agence_id', profile.agence_id)
 
     const { data: visitesData } = await supabase
       .from('visites')
       .select('*, delegates(*), medecins(*)')
+      .eq('agence_id', profile.agence_id)
       .order('created_at', { ascending: false })
 
     setDelegates(delegatesData || [])

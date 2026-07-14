@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../supabase'
 
-export default function StatistiquesAvancees({ onBack }) {
+export default function StatistiquesAvancees({ onBack, profile }) {
   const [delegates, setDelegates] = useState([])
   const [visites, setVisites] = useState([])
   const [objectifs, setObjectifs] = useState([])
@@ -15,12 +15,20 @@ export default function StatistiquesAvancees({ onBack }) {
   useEffect(() => { fetchData() }, [])
 
   const fetchData = async () => {
-    const { data: d } = await supabase.from('delegates').select('*').order('nom')
+    const { data: d } = await supabase
+      .from('delegates')
+      .select('*')
+      .eq('agence_id', profile.agence_id)
+      .order('nom')
     const { data: v } = await supabase
       .from('visites')
       .select('*, delegates(*)')
+      .eq('agence_id', profile.agence_id)
       .order('created_at', { ascending: false })
-    const { data: o } = await supabase.from('objectifs').select('*')
+    const { data: o } = await supabase
+      .from('objectifs')
+      .select('*')
+      .eq('agence_id', profile.agence_id)
     setDelegates(d || [])
     setVisites(v || [])
     setObjectifs(o || [])
@@ -51,11 +59,12 @@ export default function StatistiquesAvancees({ onBack }) {
         objectif_medecins: Number(objForm.objectif_medecins)
       }).eq('id', existing.id)
     } else {
-      await supabase.from('objectifs').insert({
+     await supabase.from('objectifs').insert({
         delegate_id: delegateId,
         mois: selectedMois,
         objectif_visites: Number(objForm.objectif_visites),
-        objectif_medecins: Number(objForm.objectif_medecins)
+        objectif_medecins: Number(objForm.objectif_medecins),
+        agence_id: profile.agence_id
       })
     }
     setSaving(false)
