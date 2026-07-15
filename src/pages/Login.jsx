@@ -8,10 +8,67 @@ export default function Login() {
   const [loading, setLoading] = useState(false)
 
   const handleLogin = async () => {
+    if (!email || !password) { setError('Remplissez tous les champs'); return }
     setLoading(true)
     setError('')
-    const { error } = await supabase.auth.signInWithPassword({ email, password })
-    if (error) setError('Email ou mot de passe incorrect')
+
+    // Vérifier si le compte est bloqué ou désactivé
+    const { data: profileData } = await supabase
+      .from('profiles')
+      .select('actif, tentatives_connexion, bloque_at')
+      .eq('id', (await supabase.auth.signInWithPassword({ email, password }))?.data?.user?.id || '')
+      .single()
+
+    // Tentative de connexion
+    const { data, error: authError } = await supabase.auth.signInWithPassword({ email, password })
+
+    if (authError) {
+      // Récupérer le profil par email
+      const { data: users } = await supabase
+        .from('profiles')
+        .select('id, tentatives_connexion, actif, bloque_at')
+        .eq('id', (
+          await supabase.from('delegates').select('id').eq('email', email).single()
+        )?.data?.id || '')
+
+      setError('Email ou mot de passe incorrect')
+      setLoading(false)
+      return
+    }
+
+    if (!data.user) { setError('Erreur de connexion'); setLoading(false); return }
+
+    // Vérifier le profil après connexion
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('actif, tentatives_connexion, bloque_at')
+      .eq('id', data.user.id)
+      .single()
+
+    if (!profile) { setLoading(false); return }
+
+    // Compte désactivé
+    if (profile.actif === false) {
+      await supabase.auth.signOut()
+      setError('Votre compte a été désactivé. Contactez votre administrateur.')
+      setLoading(false)
+      return
+    }
+
+    // Compte bloqué après 3 tentatives
+    if (profile.tentatives_connexion >= 3) {
+      await supabase.auth.signOut()
+      setError('Compte bloqué après 3 tentatives. Contactez votre administrateur.')
+      setLoading(false)
+      return
+    }
+
+    // Connexion réussie — réinitialiser les tentatives
+    await supabase
+      .from('profiles')
+      .update({ tentatives_connexion: 0 })
+      .eq('id', data.user.id)
+
     setLoading(false)
   }
 
@@ -47,7 +104,11 @@ export default function Login() {
             />
           </div>
 
-          {error && <p className="text-red-500 text-xs text-center">{error}</p>}
+          {error && (
+            <div className="bg-rose-50 border border-rose-200 rounded-xl p-3">
+              <p className="text-rose-500 text-xs font-bold text-center">{error}</p>
+            </div>
+          )}
 
           <button
             onClick={handleLogin}
