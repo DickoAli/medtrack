@@ -8,6 +8,7 @@ import SuperAdmin from './pages/SuperAdmin'
 export default function App() {
   const [session, setSession] = useState(null)
   const [profile, setProfile] = useState(null)
+  const [agence, setAgence] = useState(null)
   const [loading, setLoading] = useState(true)
 
   const loadProfile = async (userId) => {
@@ -16,7 +17,18 @@ export default function App() {
       .select('*, delegates(*)')
       .eq('id', userId)
       .single()
+
     setProfile(data)
+
+    // Charger l'agence si pas superadmin
+    if (data?.agence_id) {
+      const { data: agenceData } = await supabase
+        .from('agences')
+        .select('*')
+        .eq('id', data.agence_id)
+        .single()
+      setAgence(agenceData)
+    }
   }
 
   useEffect(() => {
@@ -32,6 +44,7 @@ export default function App() {
         await loadProfile(session.user.id)
       } else {
         setProfile(null)
+        setAgence(null)
       }
     })
 
@@ -52,8 +65,52 @@ export default function App() {
     </div>
   )
 
+  // Vérification expiration agence
+  if (agence && profile.role_global !== 'superadmin') {
+    const expiration = new Date(agence.date_expiration)
+    const maintenant = new Date()
+    if (expiration < maintenant) {
+      return (
+        <div className="min-h-screen bg-blue-950 flex items-center justify-center p-6">
+          <div className="bg-white rounded-2xl p-8 w-full max-w-sm text-center shadow-2xl">
+            <div className="text-5xl mb-4">⏰</div>
+            <h1 className="text-xl font-black text-blue-950 mb-2">Accès expiré</h1>
+            <p className="text-slate-400 text-sm mb-4">
+              Votre période d'essai de 15 jours est terminée.
+            </p>
+            <div className="bg-slate-50 rounded-xl p-3 mb-4">
+              <p className="text-xs text-slate-500">Expirée le</p>
+              <p className="font-black text-rose-500">{expiration.toLocaleDateString('fr-FR')}</p>
+            </div>
+            <p className="text-xs text-slate-400 mb-6">
+              Contactez l'administrateur MedTrack pour réactiver votre accès.
+            </p>
+            
+              href="mailto:superadmin@medtrack.com"
+              className="block w-full bg-teal-400 text-blue-950 font-black py-3 rounded-xl text-sm"
+            >
+              📧 Contacter l'administrateur
+            </a>
+            <button
+              onClick={() => supabase.auth.signOut()}
+              className="w-full mt-3 bg-slate-100 text-slate-500 font-black py-3 rounded-xl text-sm"
+            >
+              Se déconnecter
+            </button>
+          </div>
+        </div>
+      )
+    }
+
+    // Avertissement si moins de 3 jours restants
+    const joursRestants = Math.ceil((expiration - maintenant) / (1000 * 60 * 60 * 24))
+    if (joursRestants <= 3 && agence.essai_actif) {
+      console.warn(`⚠️ Accès expire dans ${joursRestants} jour(s)`)
+    }
+  }
+
   if (profile.role_global === 'superadmin') return <SuperAdmin session={session} profile={profile} />
-  if (profile.role === 'manager') return <Dashboard session={session} profile={profile} />
+  if (profile.role === 'manager') return <Dashboard session={session} profile={profile} agence={agence} />
   if (profile.role === 'delegue') return <DelegueApp session={session} profile={profile} />
 
   return (

@@ -92,11 +92,28 @@ export default function DelegueApp({ session, profile }) {
     startTracking()
     checkPending()
     window.addEventListener('online', syncPendingVisites)
+
+    // Intercepter le bouton retour Android
+    const handleBackButton = (e) => {
+      e.preventDefault()
+      if (page !== 'accueil') {
+        setPage('accueil')
+      } else {
+        if (window.confirm('Voulez-vous quitter MedTrack ?')) {
+          window.history.back()
+        }
+      }
+    }
+
+    window.history.pushState(null, '', window.location.href)
+    window.addEventListener('popstate', handleBackButton)
+
     return () => {
       if (watchRef.current) navigator.geolocation.clearWatch(watchRef.current)
       window.removeEventListener('online', syncPendingVisites)
+      window.removeEventListener('popstate', handleBackButton)
     }
-  }, [])
+  }, [page])
 
   const set = (k, v) => setForm((f) => ({ ...f, [k]: v }))
 
