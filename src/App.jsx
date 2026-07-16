@@ -88,7 +88,7 @@ export default function App() {
             
               href="mailto:superadmin@medtrack.com"
               className="block w-full bg-teal-400 text-blue-950 font-black py-3 rounded-xl text-sm"
-            >
+            {'>'}
               📧 Contacter l'administrateur
             </a>
             <button
