@@ -1,3 +1,4 @@
+import Extranet from './Extranet'
 import { useState, useEffect } from 'react'
 import { supabase } from '../supabase'
 import NouvelleVisite from './NouvelleVisite'
@@ -46,7 +47,9 @@ export default function Dashboard({ session, profile, agence }) {
   if (page === 'nouvelle-visite') return (
     <NouvelleVisite profile={profile} onBack={() => { setPage('dashboard'); fetchData() }} />
   )
-
+if (page === 'extranet') return (
+  <Extranet profile={profile} onBack={() => setPage('dashboard')} />
+)
   if (page === 'carte') return (
     <Carte profile={profile} onBack={() => setPage('dashboard')} />
   )
@@ -148,6 +151,12 @@ export default function Dashboard({ session, profile, agence }) {
         >
           🗺️ Carte des délégués
         </button>
+        <button
+  onClick={() => setPage('extranet')}
+  className="w-full bg-slate-700 text-white font-black py-4 rounded-2xl text-sm hover:bg-slate-600 transition-colors"
+>
+  🌐 Extranet grossistes
+</button>
         <button
           onClick={() => setPage('statistiques')}
           className="w-full bg-purple-600 text-white font-black py-4 rounded-2xl text-sm hover:bg-purple-500 transition-colors"

@@ -258,6 +258,7 @@ export default function DelegueApp({ session, profile }) {
           { id: 'accueil', label: '🏠 Accueil' },
           { id: 'visite', label: '+ Visite' },
           { id: 'historique', label: '📋 Historique' },
+          { id: 'extranet', label: '🌐 Extranet' },
         ].map((n) => (
           <button
             key={n.id}
@@ -511,7 +512,9 @@ export default function DelegueApp({ session, profile }) {
             ))
           )}
         </div>
-      )}
+      )}{page === 'extranet' && (
+  <Extranet profile={profile} onBack={() => setPage('accueil')} />
+)}
     </div>
   )
 }
