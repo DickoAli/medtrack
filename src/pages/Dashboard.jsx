@@ -1,15 +1,16 @@
-import GestionLabos from './GestionLabos'
-import StatistiquesAvancees from './StatistiquesAvancees'
-import Rapports from './Rapports'
-import GestionDelegues from './GestionDelegues'
-import GestionProduits from './GestionProduits'
 import { useState, useEffect } from 'react'
 import { supabase } from '../supabase'
 import NouvelleVisite from './NouvelleVisite'
 import Carte from './Carte'
 import Statistiques from './Statistiques'
+import StatistiquesAvancees from './StatistiquesAvancees'
+import Rapports from './Rapports'
+import GestionDelegues from './GestionDelegues'
+import GestionProduits from './GestionProduits'
+import GestionLabos from './GestionLabos'
+import GestionComptes from './GestionComptes'
 
-export default function Dashboard({ session, profile }) {
+export default function Dashboard({ session, profile, agence }) {
   const [delegates, setDelegates] = useState([])
   const [visites, setVisites] = useState([])
   const [loading, setLoading] = useState(true)
@@ -73,12 +74,22 @@ export default function Dashboard({ session, profile }) {
   if (page === 'labos') return (
     <GestionLabos profile={profile} onBack={() => setPage('dashboard')} />
   )
+
+  if (page === 'comptes') return (
+    <GestionComptes profile={profile} onBack={() => setPage('dashboard')} />
+  )
+
   const todayStr = new Date().toISOString().slice(0, 10)
   const todayVisites = visites.filter((v) => v.created_at?.slice(0, 10) === todayStr)
   const planifiees = visites.filter((v) => v.statut === 'Planifiée')
   const successRate = visites.length > 0
     ? Math.round((visites.filter((v) => v.statut === 'Réalisée').length / visites.length) * 100)
     : 0
+
+  // Jours restants avant expiration
+  const joursRestants = agence?.date_expiration
+    ? Math.ceil((new Date(agence.date_expiration) - new Date()) / (1000 * 60 * 60 * 24))
+    : null
 
   return (
     <div className="min-h-screen bg-slate-100">
@@ -88,7 +99,9 @@ export default function Dashboard({ session, profile }) {
           <span className="text-2xl">⚕</span>
           <div>
             <h1 className="text-white font-black text-lg">MedTrack</h1>
-            <p className="text-teal-400 text-xs font-bold uppercase tracking-wider">Tableau de bord</p>
+            <p className="text-teal-400 text-xs font-bold uppercase tracking-wider">
+              {agence?.nom || 'Tableau de bord'}
+            </p>
           </div>
         </div>
         <button
@@ -98,6 +111,14 @@ export default function Dashboard({ session, profile }) {
           Déconnexion
         </button>
       </div>
+
+      {/* Bannière expiration */}
+      {joursRestants !== null && joursRestants <= 5 && joursRestants > 0 && (
+        <div className="bg-amber-500 px-6 py-2 text-xs font-bold flex items-center gap-2">
+          <span>⚠️</span>
+          <span className="text-white">Votre accès expire dans {joursRestants} jour(s) — contactez l'administrateur</span>
+        </div>
+      )}
 
       {/* Stats */}
       <div className="p-6 grid grid-cols-2 gap-4">
@@ -119,57 +140,57 @@ export default function Dashboard({ session, profile }) {
         </div>
       </div>
 
-    {/* Boutons */}
-<div className="px-6 mb-6 flex flex-col gap-3">
-  <button
-    onClick={() => setPage('carte')}
-    className="w-full bg-blue-950 text-white font-black py-4 rounded-2xl text-sm hover:bg-blue-900 transition-colors"
-  >
-    🗺️ Carte des délégués
-  </button>
-  <button
-  onClick={() => setPage('labos')}
-  className="w-full bg-cyan-600 text-white font-black py-4 rounded-2xl text-sm hover:bg-cyan-500 transition-colors"
->
-  🧪 Laboratoires
-</button>
-  <button
-    onClick={() => setPage('statistiques')}
-    className="w-full bg-purple-600 text-white font-black py-4 rounded-2xl text-sm hover:bg-purple-500 transition-colors"
-  >
-    📊 Statistiques par délégué
-  </button>
-  <button
-    onClick={() => setPage('delegues')}
-    className="w-full bg-teal-600 text-white font-black py-4 rounded-2xl text-sm hover:bg-teal-500 transition-colors"
-  >
-    👥 Gestion des délégués
-  </button>
-  <button
-    onClick={() => setPage('produits')}
-    className="w-full bg-amber-500 text-white font-black py-4 rounded-2xl text-sm hover:bg-amber-400 transition-colors"
-  >
-    💊 Produits du labo
-  </button>
-  <button
-    onClick={() => setPage('rapports')}
-    className="w-full bg-green-600 text-white font-black py-4 rounded-2xl text-sm hover:bg-green-500 transition-colors"
-  >
-    📥 Rapports & Export Excel
-  </button>
-  <button
-  onClick={() => setPage('stats-avancees')}
-  className="w-full bg-indigo-600 text-white font-black py-4 rounded-2xl text-sm hover:bg-indigo-500 transition-colors"
->
-  <button
-  onClick={() => setPage('stats-avancees')}
-  className="w-full bg-indigo-600 text-white font-black py-4 rounded-2xl text-sm hover:bg-indigo-500 transition-colors"
->
-  📈 Statistiques avancées
-</button>
-  
-</button>
-</div>
+      {/* Boutons */}
+      <div className="px-6 mb-6 flex flex-col gap-3">
+        <button
+          onClick={() => setPage('carte')}
+          className="w-full bg-blue-950 text-white font-black py-4 rounded-2xl text-sm hover:bg-blue-900 transition-colors"
+        >
+          🗺️ Carte des délégués
+        </button>
+        <button
+          onClick={() => setPage('statistiques')}
+          className="w-full bg-purple-600 text-white font-black py-4 rounded-2xl text-sm hover:bg-purple-500 transition-colors"
+        >
+          📊 Statistiques par délégué
+        </button>
+        <button
+          onClick={() => setPage('stats-avancees')}
+          className="w-full bg-indigo-600 text-white font-black py-4 rounded-2xl text-sm hover:bg-indigo-500 transition-colors"
+        >
+          📈 Statistiques avancées
+        </button>
+        <button
+          onClick={() => setPage('rapports')}
+          className="w-full bg-green-600 text-white font-black py-4 rounded-2xl text-sm hover:bg-green-500 transition-colors"
+        >
+          📥 Rapports & Export Excel
+        </button>
+        <button
+          onClick={() => setPage('delegues')}
+          className="w-full bg-teal-600 text-white font-black py-4 rounded-2xl text-sm hover:bg-teal-500 transition-colors"
+        >
+          👥 Gestion des délégués
+        </button>
+        <button
+          onClick={() => setPage('produits')}
+          className="w-full bg-amber-500 text-white font-black py-4 rounded-2xl text-sm hover:bg-amber-400 transition-colors"
+        >
+          💊 Produits du labo
+        </button>
+        <button
+          onClick={() => setPage('labos')}
+          className="w-full bg-cyan-600 text-white font-black py-4 rounded-2xl text-sm hover:bg-cyan-500 transition-colors"
+        >
+          🧪 Laboratoires
+        </button>
+        <button
+          onClick={() => setPage('comptes')}
+          className="w-full bg-rose-600 text-white font-black py-4 rounded-2xl text-sm hover:bg-rose-500 transition-colors"
+        >
+          🔐 Gestion des comptes
+        </button>
+      </div>
 
       {/* Visites planifiées */}
       {planifiees.length > 0 && (
@@ -181,7 +202,7 @@ export default function Dashboard({ session, profile }) {
             {planifiees.map((v) => (
               <div key={v.id} className="bg-white rounded-2xl p-4 border-l-4 border-amber-400">
                 <div className="flex items-center justify-between mb-2">
-                  <p className="font-bold text-blue-950 text-sm">Dr. {v.medecins?.nom || '—'}</p>
+                  <p className="font-bold text-blue-950 text-sm">{v.nom_contact || v.medecins?.nom || '—'}</p>
                   <span className="text-xs font-bold px-2 py-1 rounded-full bg-amber-100 text-amber-600">
                     Planifiée
                   </span>
