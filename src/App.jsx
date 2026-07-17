@@ -17,10 +17,7 @@ export default function App() {
       .select('*, delegates(*)')
       .eq('id', userId)
       .single()
-
     setProfile(data)
-
-    // Charger l'agence si pas superadmin
     if (data?.agence_id) {
       const { data: agenceData } = await supabase
         .from('agences')
@@ -37,7 +34,6 @@ export default function App() {
       if (session) await loadProfile(session.user.id)
       setLoading(false)
     })
-
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
       setSession(session)
       if (session) {
@@ -47,25 +43,29 @@ export default function App() {
         setAgence(null)
       }
     })
-
     return () => subscription.unsubscribe()
   }, [])
 
-  if (loading) return (
-    <div className="min-h-screen bg-blue-950 flex items-center justify-center">
-      <p className="text-teal-400 font-bold">Chargement...</p>
-    </div>
-  )
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-blue-950 flex items-center justify-center">
+        <p className="text-teal-400 font-bold">Chargement...</p>
+      </div>
+    )
+  }
 
-  if (!session) return <Login />
+  if (!session) {
+    return <Login />
+  }
 
-  if (!profile) return (
-    <div className="min-h-screen bg-blue-950 flex items-center justify-center">
-      <p className="text-teal-400 font-bold">Chargement du profil...</p>
-    </div>
-  )
+  if (!profile) {
+    return (
+      <div className="min-h-screen bg-blue-950 flex items-center justify-center">
+        <p className="text-teal-400 font-bold">Chargement du profil...</p>
+      </div>
+    )
+  }
 
-  // Vérification expiration agence
   if (agence && profile.role_global !== 'superadmin') {
     const expiration = new Date(agence.date_expiration)
     const maintenant = new Date()
@@ -80,20 +80,22 @@ export default function App() {
             </p>
             <div className="bg-slate-50 rounded-xl p-3 mb-4">
               <p className="text-xs text-slate-500">Expirée le</p>
-              <p className="font-black text-rose-500">{expiration.toLocaleDateString('fr-FR')}</p>
+              <p className="font-black text-rose-500">
+                {expiration.toLocaleDateString('fr-FR')}
+              </p>
             </div>
             <p className="text-xs text-slate-400 mb-6">
               Contactez l'administrateur MedTrack pour réactiver votre accès.
             </p>
             
-              href="mailto:superadmin@medtrack.com"
-              className="block w-full bg-teal-400 text-blue-950 font-black py-3 rounded-xl text-sm"
-            {'>'}
+              <a href="mailto:superadmin@medtrack.com"
+              className="block w-full bg-teal-400 text-blue-950 font-black py-3 rounded-xl text-sm mb-3"
+            >
               📧 Contacter l'administrateur
             </a>
             <button
               onClick={() => supabase.auth.signOut()}
-              className="w-full mt-3 bg-slate-100 text-slate-500 font-black py-3 rounded-xl text-sm"
+              className="w-full bg-slate-100 text-slate-500 font-black py-3 rounded-xl text-sm"
             >
               Se déconnecter
             </button>
@@ -101,17 +103,19 @@ export default function App() {
         </div>
       )
     }
-
-    // Avertissement si moins de 3 jours restants
-    const joursRestants = Math.ceil((expiration - maintenant) / (1000 * 60 * 60 * 24))
-    if (joursRestants <= 3 && agence.essai_actif) {
-      console.warn(`⚠️ Accès expire dans ${joursRestants} jour(s)`)
-    }
   }
 
-  if (profile.role_global === 'superadmin') return <SuperAdmin session={session} profile={profile} />
-  if (profile.role === 'manager') return <Dashboard session={session} profile={profile} agence={agence} />
-  if (profile.role === 'delegue') return <DelegueApp session={session} profile={profile} />
+  if (profile.role_global === 'superadmin') {
+    return <SuperAdmin session={session} profile={profile} />
+  }
+
+  if (profile.role === 'manager') {
+    return <Dashboard session={session} profile={profile} agence={agence} />
+  }
+
+  if (profile.role === 'delegue') {
+    return <DelegueApp session={session} profile={profile} />
+  }
 
   return (
     <div className="min-h-screen bg-blue-950 flex items-center justify-center">
