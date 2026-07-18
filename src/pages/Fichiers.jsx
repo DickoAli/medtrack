@@ -58,7 +58,7 @@ export default function Fichiers({ onBack, profile }) {
 
     // Upload dans Supabase Storage
     const { error: uploadError } = await supabase.storage
-      .from('fichiers')
+      .from('statlabo')
       .upload(fileName, file)
 
     if (uploadError) {
@@ -69,7 +69,7 @@ export default function Fichiers({ onBack, profile }) {
 
     // Récupérer l'URL publique
     const { data: urlData } = supabase.storage
-      .from('fichiers')
+      .from('statlabo')
       .getPublicUrl(fileName)
 
     // Enregistrer en base
@@ -95,7 +95,7 @@ export default function Fichiers({ onBack, profile }) {
   const handleDelete = async (fichier) => {
     if (!confirm('Supprimer ce fichier ?')) return
     const path = fichier.url.split('/fichiers/')[1]
-    await supabase.storage.from('fichiers').remove([path])
+    await supabase.storage.from('statlabo').remove([path])
     await supabase.from('fichiers').delete().eq('id', fichier.id)
     fetchFichiers()
   }
