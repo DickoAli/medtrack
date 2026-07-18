@@ -1,3 +1,4 @@
+import Fichiers from './Fichiers'
 import { useState, useEffect } from 'react'
 import { supabase } from '../supabase'
 import GestionAgences from './GestionAgences'
@@ -30,7 +31,9 @@ export default function SuperAdmin({ session, profile }) {
   if (page === 'agences') return (
     <GestionAgences onBack={() => setPage('dashboard')} profile={profile} />
   )
-
+if (page === 'fichiers') return (
+  <Fichiers profile={profile} onBack={() => setPage('dashboard')} />
+)
   return (
     <div className="min-h-screen bg-slate-100">
       <div className="bg-blue-950 px-6 py-4 flex items-center justify-between">
@@ -82,6 +85,12 @@ export default function SuperAdmin({ session, profile }) {
         >
           🏢 Gérer les agences
         </button>
+        <button
+  onClick={() => setPage('fichiers')}
+  className="w-full bg-emerald-600 text-white font-black py-4 rounded-2xl text-sm hover:bg-emerald-500 transition-colors"
+>
+  📊 Déposer des fichiers stats
+</button>
       </div>
     </div>
   )

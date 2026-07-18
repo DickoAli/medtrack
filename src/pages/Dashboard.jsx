@@ -1,3 +1,4 @@
+import Fichiers from './Fichiers'
 import Extranet from './Extranet'
 import { useState, useEffect } from 'react'
 import { supabase } from '../supabase'
@@ -43,7 +44,9 @@ export default function Dashboard({ session, profile, agence }) {
       <p className="text-teal-500 font-bold">Chargement...</p>
     </div>
   )
-
+if (page === 'fichiers') return (
+  <Fichiers profile={profile} onBack={() => setPage('dashboard')} />
+)
   if (page === 'nouvelle-visite') return (
     <NouvelleVisite profile={profile} onBack={() => { setPage('dashboard'); fetchData() }} />
   )
@@ -151,6 +154,12 @@ if (page === 'extranet') return (
         >
           🗺️ Carte des délégués
         </button>
+        <button
+  onClick={() => setPage('fichiers')}
+  className="w-full bg-emerald-600 text-white font-black py-4 rounded-2xl text-sm hover:bg-emerald-500 transition-colors"
+>
+  📊 Statistiques fichiers
+</button>
         <button
   onClick={() => setPage('extranet')}
   className="w-full bg-slate-700 text-white font-black py-4 rounded-2xl text-sm hover:bg-slate-600 transition-colors"
