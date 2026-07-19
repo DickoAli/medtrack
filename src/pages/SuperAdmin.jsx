@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { supabase } from './supabase'
+import { supabase } from '../supabase'
 import GestionAgences from './GestionAgences'
 import Fichiers from './Fichiers'
 
