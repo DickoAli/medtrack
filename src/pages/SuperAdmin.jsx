@@ -8,29 +8,35 @@ export default function SuperAdmin({ session, profile }) {
   const [demandes, setDemandes] = useState([])
   const [page, setPage] = useState('dashboard')
   const [loading, setLoading] = useState(true)
+  const [refreshing, setRefreshing] = useState(false)
+  const [lastRefresh, setLastRefresh] = useState(new Date())
   const [newPassword, setNewPassword] = useState('')
   const [resetting, setResetting] = useState(null)
 
   useEffect(() => {
-    fetchStats()
-    fetchDemandes()
+    fetchAll()
+    const interval = setInterval(fetchAll, 30000)
+    return () => clearInterval(interval)
   }, [])
 
-  const fetchStats = async () => {
-    const { count: agences } = await supabase.from('agences').select('*', { count: 'exact', head: true })
-    const { count: delegates } = await supabase.from('delegates').select('*', { count: 'exact', head: true })
-    const { count: visites } = await supabase.from('visites').select('*', { count: 'exact', head: true })
+  const fetchAll = async () => {
+    setRefreshing(true)
+    const [
+      { count: agences },
+      { count: delegates },
+      { count: visites },
+      { data: demandesData },
+    ] = await Promise.all([
+      supabase.from('agences').select('*', { count: 'exact', head: true }),
+      supabase.from('delegates').select('*', { count: 'exact', head: true }),
+      supabase.from('visites').select('*', { count: 'exact', head: true }),
+      supabase.from('demandes_reset').select('*').eq('statut', 'en_attente').order('created_at', { ascending: false }),
+    ])
     setStats({ agences: agences || 0, delegates: delegates || 0, visites: visites || 0 })
+    setDemandes(demandesData || [])
+    setRefreshing(false)
     setLoading(false)
-  }
-
-  const fetchDemandes = async () => {
-    const { data } = await supabase
-      .from('demandes_reset')
-      .select('*')
-      .eq('statut', 'en_attente')
-      .order('created_at', { ascending: false })
-    setDemandes(data || [])
+    setLastRefresh(new Date())
   }
 
   const handleReset = async (demande) => {
@@ -39,17 +45,14 @@ export default function SuperAdmin({ session, profile }) {
       return
     }
     setResetting(demande.id)
-
     await supabase.rpc('reset_user_password_by_email', {
       user_email: demande.email,
       new_password: newPassword
     })
-
     await supabase.from('demandes_reset').update({ statut: 'traite' }).eq('id', demande.id)
-
     setResetting(null)
     setNewPassword('')
-    fetchDemandes()
+    fetchAll()
     alert(`✅ Mot de passe réinitialisé pour ${demande.email}`)
   }
 
@@ -66,12 +69,26 @@ export default function SuperAdmin({ session, profile }) {
             <p className="text-teal-400 text-xs font-bold uppercase tracking-wider">Super Admin</p>
           </div>
         </div>
-        <button
-          onClick={() => supabase.auth.signOut()}
-          className="bg-red-500 text-white px-4 py-2 rounded-xl font-bold text-xs"
-        >
-          Déconnexion
-        </button>
+        <div className="flex items-center gap-2">
+          <div className="text-right">
+            <button
+              onClick={fetchAll}
+              disabled={refreshing}
+              className="bg-teal-400 text-blue-950 px-3 py-2 rounded-xl font-bold text-xs"
+            >
+              {refreshing ? '...' : '🔄'}
+            </button>
+            <p className="text-teal-400 text-xs mt-0.5">
+              {lastRefresh.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}
+            </p>
+          </div>
+          <button
+            onClick={() => supabase.auth.signOut()}
+            className="bg-red-500 text-white px-4 py-2 rounded-xl font-bold text-xs"
+          >
+            Déconnexion
+          </button>
+        </div>
       </div>
 
       <div className="p-6 flex flex-col gap-4">
@@ -98,7 +115,7 @@ export default function SuperAdmin({ session, profile }) {
           </div>
         )}
 
-        {/* Demandes de reset */}
+        {/* Demandes reset */}
         {demandes.length > 0 && (
           <div className="bg-white rounded-2xl p-4">
             <div className="flex items-center gap-2 mb-3">
@@ -109,7 +126,7 @@ export default function SuperAdmin({ session, profile }) {
               <div key={d.id} className="border border-slate-200 rounded-xl p-3 mb-3">
                 <p className="font-bold text-blue-950 text-sm">{d.email}</p>
                 <p className="text-xs text-slate-400 mb-3">
-                  Demandé le {new Date(d.created_at).toLocaleDateString('fr-FR')} à {new Date(d.created_at).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}
+                  {new Date(d.created_at).toLocaleDateString('fr-FR')} à {new Date(d.created_at).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}
                 </p>
                 <div className="flex gap-2">
                   <input
@@ -123,7 +140,7 @@ export default function SuperAdmin({ session, profile }) {
                     onClick={() => handleReset(d)}
                     className="bg-teal-400 text-blue-950 px-3 py-2 rounded-xl text-xs font-black"
                   >
-                    Réinitialiser
+                    ✓
                   </button>
                 </div>
               </div>

@@ -34,6 +34,7 @@ export default function App() {
       if (session) await loadProfile(session.user.id)
       setLoading(false)
     })
+
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
       setSession(session)
       if (session) {
@@ -43,7 +44,24 @@ export default function App() {
         setAgence(null)
       }
     })
-    return () => subscription.unsubscribe()
+
+    // Déconnexion automatique après 15 min d'inactivité
+    let inactivityTimer
+    const resetTimer = () => {
+      clearTimeout(inactivityTimer)
+      inactivityTimer = setTimeout(async () => {
+        await supabase.auth.signOut()
+      }, 15 * 60 * 1000)
+    }
+    const events = ['mousedown', 'mousemove', 'keypress', 'scroll', 'touchstart', 'click']
+    events.forEach(e => window.addEventListener(e, resetTimer))
+    resetTimer()
+
+    return () => {
+      clearTimeout(inactivityTimer)
+      events.forEach(e => window.removeEventListener(e, resetTimer))
+      subscription.unsubscribe()
+    }
   }, [])
 
   if (loading) return (

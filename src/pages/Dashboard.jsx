@@ -1,5 +1,3 @@
-import Fichiers from './Fichiers'
-import Extranet from './Extranet'
 import { useState, useEffect } from 'react'
 import { supabase } from '../supabase'
 import NouvelleVisite from './NouvelleVisite'
@@ -11,32 +9,39 @@ import GestionDelegues from './GestionDelegues'
 import GestionProduits from './GestionProduits'
 import GestionLabos from './GestionLabos'
 import GestionComptes from './GestionComptes'
+import Extranet from './Extranet'
+import Fichiers from './Fichiers'
 
 export default function Dashboard({ session, profile, agence }) {
   const [delegates, setDelegates] = useState([])
   const [visites, setVisites] = useState([])
   const [loading, setLoading] = useState(true)
   const [page, setPage] = useState('dashboard')
+  const [lastRefresh, setLastRefresh] = useState(new Date())
+  const [refreshing, setRefreshing] = useState(false)
 
   useEffect(() => {
     fetchData()
+    const interval = setInterval(fetchData, 30000)
+    return () => clearInterval(interval)
   }, [])
 
   const fetchData = async () => {
-    const { data: delegatesData } = await supabase
-      .from('delegates')
-      .select('*')
-      .eq('agence_id', profile.agence_id)
-
-    const { data: visitesData } = await supabase
-      .from('visites')
-      .select('*, delegates(*), medecins(*)')
-      .eq('agence_id', profile.agence_id)
-      .order('created_at', { ascending: false })
-
+    setRefreshing(true)
+    const [
+      { data: delegatesData },
+      { data: visitesData },
+    ] = await Promise.all([
+      supabase.from('delegates').select('*').eq('agence_id', profile.agence_id),
+      supabase.from('visites').select('*, delegates(*), medecins(*)')
+        .eq('agence_id', profile.agence_id)
+        .order('created_at', { ascending: false }),
+    ])
     setDelegates(delegatesData || [])
     setVisites(visitesData || [])
     setLoading(false)
+    setRefreshing(false)
+    setLastRefresh(new Date())
   }
 
   if (loading) return (
@@ -44,45 +49,39 @@ export default function Dashboard({ session, profile, agence }) {
       <p className="text-teal-500 font-bold">Chargement...</p>
     </div>
   )
-if (page === 'fichiers') return (
-  <Fichiers profile={profile} onBack={() => setPage('dashboard')} />
-)
+
   if (page === 'nouvelle-visite') return (
     <NouvelleVisite profile={profile} onBack={() => { setPage('dashboard'); fetchData() }} />
   )
-if (page === 'extranet') return (
-  <Extranet profile={profile} onBack={() => setPage('dashboard')} />
-)
   if (page === 'carte') return (
     <Carte profile={profile} onBack={() => setPage('dashboard')} />
   )
-
   if (page === 'statistiques') return (
     <Statistiques profile={profile} onBack={() => setPage('dashboard')} />
   )
-
   if (page === 'rapports') return (
     <Rapports profile={profile} onBack={() => setPage('dashboard')} />
   )
-
   if (page === 'stats-avancees') return (
     <StatistiquesAvancees profile={profile} onBack={() => setPage('dashboard')} />
   )
-
   if (page === 'delegues') return (
     <GestionDelegues profile={profile} onBack={() => { setPage('dashboard'); fetchData() }} />
   )
-
   if (page === 'produits') return (
     <GestionProduits profile={profile} onBack={() => setPage('dashboard')} />
   )
-
   if (page === 'labos') return (
     <GestionLabos profile={profile} onBack={() => setPage('dashboard')} />
   )
-
   if (page === 'comptes') return (
     <GestionComptes profile={profile} onBack={() => setPage('dashboard')} />
+  )
+  if (page === 'extranet') return (
+    <Extranet profile={profile} onBack={() => setPage('dashboard')} />
+  )
+  if (page === 'fichiers') return (
+    <Fichiers profile={profile} onBack={() => setPage('dashboard')} />
   )
 
   const todayStr = new Date().toISOString().slice(0, 10)
@@ -92,7 +91,6 @@ if (page === 'extranet') return (
     ? Math.round((visites.filter((v) => v.statut === 'Réalisée').length / visites.length) * 100)
     : 0
 
-  // Jours restants avant expiration
   const joursRestants = agence?.date_expiration
     ? Math.ceil((new Date(agence.date_expiration) - new Date()) / (1000 * 60 * 60 * 24))
     : null
@@ -110,12 +108,26 @@ if (page === 'extranet') return (
             </p>
           </div>
         </div>
-        <button
-          onClick={() => supabase.auth.signOut()}
-          className="bg-red-500 text-white px-4 py-2 rounded-xl font-bold text-xs hover:bg-red-400"
-        >
-          Déconnexion
-        </button>
+        <div className="flex items-center gap-2">
+          <div className="text-right">
+            <button
+              onClick={fetchData}
+              disabled={refreshing}
+              className="bg-teal-400 text-blue-950 px-3 py-2 rounded-xl font-bold text-xs"
+            >
+              {refreshing ? '...' : '🔄'}
+            </button>
+            <p className="text-teal-400 text-xs mt-0.5">
+              {lastRefresh.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}
+            </p>
+          </div>
+          <button
+            onClick={() => supabase.auth.signOut()}
+            className="bg-red-500 text-white px-4 py-2 rounded-xl font-bold text-xs hover:bg-red-400"
+          >
+            Déconnexion
+          </button>
+        </div>
       </div>
 
       {/* Bannière expiration */}
@@ -148,65 +160,35 @@ if (page === 'extranet') return (
 
       {/* Boutons */}
       <div className="px-6 mb-6 flex flex-col gap-3">
-        <button
-          onClick={() => setPage('carte')}
-          className="w-full bg-blue-950 text-white font-black py-4 rounded-2xl text-sm hover:bg-blue-900 transition-colors"
-        >
+        <button onClick={() => setPage('carte')} className="w-full bg-blue-950 text-white font-black py-4 rounded-2xl text-sm hover:bg-blue-900 transition-colors">
           🗺️ Carte des délégués
         </button>
-        <button
-  onClick={() => setPage('fichiers')}
-  className="w-full bg-emerald-600 text-white font-black py-4 rounded-2xl text-sm hover:bg-emerald-500 transition-colors"
->
-  📊 Statistiques fichiers
-</button>
-        <button
-  onClick={() => setPage('extranet')}
-  className="w-full bg-slate-700 text-white font-black py-4 rounded-2xl text-sm hover:bg-slate-600 transition-colors"
->
-  🌐 Extranet grossistes
-</button>
-        <button
-          onClick={() => setPage('statistiques')}
-          className="w-full bg-purple-600 text-white font-black py-4 rounded-2xl text-sm hover:bg-purple-500 transition-colors"
-        >
+        <button onClick={() => setPage('statistiques')} className="w-full bg-purple-600 text-white font-black py-4 rounded-2xl text-sm hover:bg-purple-500 transition-colors">
           📊 Statistiques par délégué
         </button>
-        <button
-          onClick={() => setPage('stats-avancees')}
-          className="w-full bg-indigo-600 text-white font-black py-4 rounded-2xl text-sm hover:bg-indigo-500 transition-colors"
-        >
+        <button onClick={() => setPage('stats-avancees')} className="w-full bg-indigo-600 text-white font-black py-4 rounded-2xl text-sm hover:bg-indigo-500 transition-colors">
           📈 Statistiques avancées
         </button>
-        <button
-          onClick={() => setPage('rapports')}
-          className="w-full bg-green-600 text-white font-black py-4 rounded-2xl text-sm hover:bg-green-500 transition-colors"
-        >
+        <button onClick={() => setPage('rapports')} className="w-full bg-green-600 text-white font-black py-4 rounded-2xl text-sm hover:bg-green-500 transition-colors">
           📥 Rapports & Export Excel
         </button>
-        <button
-          onClick={() => setPage('delegues')}
-          className="w-full bg-teal-600 text-white font-black py-4 rounded-2xl text-sm hover:bg-teal-500 transition-colors"
-        >
+        <button onClick={() => setPage('delegues')} className="w-full bg-teal-600 text-white font-black py-4 rounded-2xl text-sm hover:bg-teal-500 transition-colors">
           👥 Gestion des délégués
         </button>
-        <button
-          onClick={() => setPage('produits')}
-          className="w-full bg-amber-500 text-white font-black py-4 rounded-2xl text-sm hover:bg-amber-400 transition-colors"
-        >
+        <button onClick={() => setPage('produits')} className="w-full bg-amber-500 text-white font-black py-4 rounded-2xl text-sm hover:bg-amber-400 transition-colors">
           💊 Produits du labo
         </button>
-        <button
-          onClick={() => setPage('labos')}
-          className="w-full bg-cyan-600 text-white font-black py-4 rounded-2xl text-sm hover:bg-cyan-500 transition-colors"
-        >
+        <button onClick={() => setPage('labos')} className="w-full bg-cyan-600 text-white font-black py-4 rounded-2xl text-sm hover:bg-cyan-500 transition-colors">
           🧪 Laboratoires
         </button>
-        <button
-          onClick={() => setPage('comptes')}
-          className="w-full bg-rose-600 text-white font-black py-4 rounded-2xl text-sm hover:bg-rose-500 transition-colors"
-        >
+        <button onClick={() => setPage('comptes')} className="w-full bg-rose-600 text-white font-black py-4 rounded-2xl text-sm hover:bg-rose-500 transition-colors">
           🔐 Gestion des comptes
+        </button>
+        <button onClick={() => setPage('extranet')} className="w-full bg-slate-700 text-white font-black py-4 rounded-2xl text-sm hover:bg-slate-600 transition-colors">
+          🌐 Extranet grossistes
+        </button>
+        <button onClick={() => setPage('fichiers')} className="w-full bg-emerald-600 text-white font-black py-4 rounded-2xl text-sm hover:bg-emerald-500 transition-colors">
+          📊 Statistiques fichiers
         </button>
       </div>
 
@@ -221,13 +203,9 @@ if (page === 'extranet') return (
               <div key={v.id} className="bg-white rounded-2xl p-4 border-l-4 border-amber-400">
                 <div className="flex items-center justify-between mb-2">
                   <p className="font-bold text-blue-950 text-sm">{v.nom_contact || v.medecins?.nom || '—'}</p>
-                  <span className="text-xs font-bold px-2 py-1 rounded-full bg-amber-100 text-amber-600">
-                    Planifiée
-                  </span>
+                  <span className="text-xs font-bold px-2 py-1 rounded-full bg-amber-100 text-amber-600">Planifiée</span>
                 </div>
-                <p className="text-xs text-slate-400">
-                  {v.delegates?.prenom} {v.delegates?.nom} · {v.produit}
-                </p>
+                <p className="text-xs text-slate-400">{v.delegates?.prenom} {v.delegates?.nom} · {v.produit}</p>
                 {v.date_prevue && (
                   <p className="text-xs text-amber-500 font-bold mt-1">
                     📅 {new Date(v.date_prevue).toLocaleString('fr-FR')}
@@ -276,8 +254,7 @@ if (page === 'extranet') return (
             {visites.slice(0, 10).map((v) => (
               <div key={v.id} className={`bg-white rounded-2xl p-4 border-l-4 ${
                 v.statut === 'Réalisée' ? 'border-teal-400' :
-                v.statut === 'Planifiée' ? 'border-amber-400' :
-                'border-rose-400'
+                v.statut === 'Planifiée' ? 'border-amber-400' : 'border-rose-400'
               }`}>
                 <div className="flex items-center justify-between mb-2">
                   <p className="font-bold text-blue-950 text-sm">

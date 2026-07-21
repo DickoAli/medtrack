@@ -21,9 +21,11 @@ export default function GestionAgences({ onBack, profile }) {
   const [editing, setEditing] = useState(null)
   const [saving, setSaving] = useState(false)
   const [successMsg, setSuccessMsg] = useState('')
+  const [showDaysForm, setShowDaysForm] = useState(null)
+  const [customDays, setCustomDays] = useState(30)
   const [form, setForm] = useState({
     nom: '', email: '', telephone: '', adresse: '', pays: 'Mali',
-    manager_email: '', manager_password: ''
+    manager_email: '', manager_password: '', duree_essai: 15
   })
 
   useEffect(() => { fetchAgences() }, [])
@@ -39,7 +41,7 @@ export default function GestionAgences({ onBack, profile }) {
 
   const set = (k, v) => setForm((f) => ({ ...f, [k]: v }))
 
-  const prolonger = async (id) => {
+  const modifierDuree = async (id, jours) => {
     const { data: agence } = await supabase
       .from('agences')
       .select('date_expiration')
@@ -50,14 +52,16 @@ export default function GestionAgences({ onBack, profile }) {
       ? new Date(agence.date_expiration)
       : new Date()
 
-    baseDate.setDate(baseDate.getDate() + 30)
+    baseDate.setDate(baseDate.getDate() + Number(jours))
 
     await supabase.from('agences').update({
       date_expiration: baseDate.toISOString(),
       essai_actif: false
     }).eq('id', id)
 
-    setSuccessMsg('Accès prolongé de 30 jours !')
+    setShowDaysForm(null)
+    setCustomDays(30)
+    setSuccessMsg(`Durée modifiée de ${jours > 0 ? '+' : ''}${jours} jours !`)
     setTimeout(() => setSuccessMsg(''), 3000)
     fetchAgences()
   }
@@ -74,13 +78,12 @@ export default function GestionAgences({ onBack, profile }) {
     } else {
       if (!form.manager_email) { alert('L\'email du manager est obligatoire'); setSaving(false); return }
 
-      // Créer l'agence avec 15 jours d'essai
       const { data: agenceData } = await supabase
         .from('agences')
         .insert({
           nom: form.nom, email: form.email,
           telephone: form.telephone, adresse: form.adresse, pays: form.pays,
-          date_expiration: new Date(Date.now() + 15 * 24 * 60 * 60 * 1000).toISOString(),
+          date_expiration: new Date(Date.now() + Number(form.duree_essai) * 24 * 60 * 60 * 1000).toISOString(),
           essai_actif: true
         })
         .select()
@@ -88,7 +91,6 @@ export default function GestionAgences({ onBack, profile }) {
 
       if (!agenceData) { alert('Erreur lors de la création'); setSaving(false); return }
 
-      // Créer le compte manager
       const { data: authData, error: authError } = await supabaseSecondary.auth.signUp({
         email: form.manager_email,
         password: form.manager_password || 'manager123',
@@ -110,7 +112,7 @@ export default function GestionAgences({ onBack, profile }) {
     setSaving(false)
     setShowForm(false)
     setEditing(null)
-    setForm({ nom: '', email: '', telephone: '', adresse: '', pays: 'Mali', manager_email: '', manager_password: '' })
+    setForm({ nom: '', email: '', telephone: '', adresse: '', pays: 'Mali', manager_email: '', manager_password: '', duree_essai: 15 })
     setSuccessMsg(editing ? 'Agence modifiée !' : 'Agence créée avec succès !')
     setTimeout(() => setSuccessMsg(''), 3000)
     fetchAgences()
@@ -121,7 +123,7 @@ export default function GestionAgences({ onBack, profile }) {
     setForm({
       nom: a.nom, email: a.email || '', telephone: a.telephone || '',
       adresse: a.adresse || '', pays: a.pays || 'Mali',
-      manager_email: '', manager_password: ''
+      manager_email: '', manager_password: '', duree_essai: 15
     })
     setShowForm(true)
   }
@@ -137,8 +139,7 @@ export default function GestionAgences({ onBack, profile }) {
     const expiration = new Date(agence.date_expiration)
     const maintenant = new Date()
     const joursRestants = Math.ceil((expiration - maintenant) / (1000 * 60 * 60 * 24))
-    const estExpire = expiration < maintenant
-    return { expiration, joursRestants, estExpire }
+    return { expiration, joursRestants, estExpire: expiration < maintenant }
   }
 
   if (loading) return (
@@ -158,7 +159,7 @@ export default function GestionAgences({ onBack, profile }) {
           onClick={() => {
             setShowForm(true)
             setEditing(null)
-            setForm({ nom: '', email: '', telephone: '', adresse: '', pays: 'Mali', manager_email: '', manager_password: '' })
+            setForm({ nom: '', email: '', telephone: '', adresse: '', pays: 'Mali', manager_email: '', manager_password: '', duree_essai: 15 })
           }}
           className="bg-teal-400 text-blue-950 px-4 py-2 rounded-xl font-black text-xs"
         >
@@ -180,99 +181,67 @@ export default function GestionAgences({ onBack, profile }) {
             </h2>
             <div className="flex flex-col gap-4">
               <div>
-                <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Nom de l'agence *</label>
-                <input
-                  value={form.nom}
-                  onChange={(e) => set('nom', e.target.value)}
-                  className="w-full mt-1 p-3 rounded-xl border border-slate-200 bg-slate-50 text-sm"
-                  placeholder="Ex: PharmaCare Mali"
-                />
+                <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Nom *</label>
+                <input value={form.nom} onChange={(e) => set('nom', e.target.value)}
+                  className="w-full mt-1 p-3 rounded-xl border border-slate-200 bg-slate-50 text-sm" placeholder="Ex: PharmaCare Mali" />
               </div>
               <div>
                 <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Pays</label>
-                <input
-                  value={form.pays}
-                  onChange={(e) => set('pays', e.target.value)}
-                  className="w-full mt-1 p-3 rounded-xl border border-slate-200 bg-slate-50 text-sm"
-                  placeholder="Mali"
-                />
+                <input value={form.pays} onChange={(e) => set('pays', e.target.value)}
+                  className="w-full mt-1 p-3 rounded-xl border border-slate-200 bg-slate-50 text-sm" placeholder="Mali" />
               </div>
               <div>
                 <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Email</label>
-                <input
-                  type="email"
-                  value={form.email}
-                  onChange={(e) => set('email', e.target.value)}
-                  className="w-full mt-1 p-3 rounded-xl border border-slate-200 bg-slate-50 text-sm"
-                  placeholder="contact@agence.com"
-                />
+                <input type="email" value={form.email} onChange={(e) => set('email', e.target.value)}
+                  className="w-full mt-1 p-3 rounded-xl border border-slate-200 bg-slate-50 text-sm" placeholder="contact@agence.com" />
               </div>
               <div>
                 <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Téléphone</label>
-                <input
-                  value={form.telephone}
-                  onChange={(e) => set('telephone', e.target.value)}
-                  className="w-full mt-1 p-3 rounded-xl border border-slate-200 bg-slate-50 text-sm"
-                  placeholder="00223XXXXXXXX"
-                />
+                <input value={form.telephone} onChange={(e) => set('telephone', e.target.value)}
+                  className="w-full mt-1 p-3 rounded-xl border border-slate-200 bg-slate-50 text-sm" placeholder="00223XXXXXXXX" />
               </div>
               <div>
                 <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Adresse</label>
-                <textarea
-                  value={form.adresse}
-                  onChange={(e) => set('adresse', e.target.value)}
-                  className="w-full mt-1 p-3 rounded-xl border border-slate-200 bg-slate-50 text-sm h-16 resize-none"
-                  placeholder="Adresse de l'agence..."
-                />
+                <textarea value={form.adresse} onChange={(e) => set('adresse', e.target.value)}
+                  className="w-full mt-1 p-3 rounded-xl border border-slate-200 bg-slate-50 text-sm h-16 resize-none" />
               </div>
 
               {!editing && (
                 <>
                   <div className="border-t border-slate-200 pt-4">
-                    <p className="text-xs font-black text-blue-950 uppercase tracking-wider mb-3">
-                      Compte Manager
-                    </p>
-                    <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 mb-3">
-                      <p className="text-xs text-amber-600 font-bold">
-                        ⏱️ L'agence aura 15 jours d'essai gratuit
-                      </p>
-                    </div>
+                    <p className="text-xs font-black text-blue-950 uppercase tracking-wider mb-3">Compte Manager</p>
+                  </div>
+                  <div>
+                    <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Durée d'essai (jours)</label>
+                    <input
+                      type="number"
+                      value={form.duree_essai}
+                      onChange={(e) => set('duree_essai', e.target.value)}
+                      className="w-full mt-1 p-3 rounded-xl border border-slate-200 bg-slate-50 text-sm"
+                      min="1" max="365"
+                    />
+                    <p className="text-xs text-slate-400 mt-1">Par défaut : 15 jours</p>
                   </div>
                   <div>
                     <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Email manager *</label>
-                    <input
-                      type="email"
-                      value={form.manager_email}
-                      onChange={(e) => set('manager_email', e.target.value)}
-                      className="w-full mt-1 p-3 rounded-xl border border-slate-200 bg-slate-50 text-sm"
-                      placeholder="manager@agence.com"
-                    />
+                    <input type="email" value={form.manager_email} onChange={(e) => set('manager_email', e.target.value)}
+                      className="w-full mt-1 p-3 rounded-xl border border-slate-200 bg-slate-50 text-sm" placeholder="manager@agence.com" />
                   </div>
                   <div>
                     <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Mot de passe manager</label>
-                    <input
-                      type="password"
-                      value={form.manager_password}
-                      onChange={(e) => set('manager_password', e.target.value)}
-                      className="w-full mt-1 p-3 rounded-xl border border-slate-200 bg-slate-50 text-sm"
-                      placeholder="Par défaut: manager123"
-                    />
+                    <input type="password" value={form.manager_password} onChange={(e) => set('manager_password', e.target.value)}
+                      className="w-full mt-1 p-3 rounded-xl border border-slate-200 bg-slate-50 text-sm" placeholder="Par défaut: manager123" />
                   </div>
                 </>
               )}
 
               <div className="flex gap-3">
-                <button
-                  onClick={() => { setShowForm(false); setEditing(null) }}
-                  className="flex-1 bg-slate-100 text-slate-600 font-black py-3 rounded-xl text-sm"
-                >
+                <button onClick={() => { setShowForm(false); setEditing(null) }}
+                  className="flex-1 bg-slate-100 text-slate-600 font-black py-3 rounded-xl text-sm">
                   Annuler
                 </button>
-                <button
-                  onClick={handleSave}
-                  disabled={saving}
-                  className="flex-1 bg-teal-400 text-blue-950 font-black py-3 rounded-xl text-sm"
-                >
+                <button onClick={handleSave} disabled={saving}
+                  className="flex-1 bg-teal-400 text-blue-950 font-black py-3 rounded-xl text-sm">
                   {saving ? 'Création...' : 'Enregistrer'}
                 </button>
               </div>
@@ -290,7 +259,10 @@ export default function GestionAgences({ onBack, profile }) {
           agences.map((a) => {
             const exp = getExpirationInfo(a)
             return (
-              <div key={a.id} className={`bg-white rounded-2xl p-4 border-l-4 ${exp?.estExpire ? 'border-rose-400' : exp?.joursRestants <= 3 ? 'border-amber-400' : 'border-teal-400'}`}>
+              <div key={a.id} className={`bg-white rounded-2xl p-4 border-l-4 ${
+                exp?.estExpire ? 'border-rose-400' :
+                exp?.joursRestants <= 3 ? 'border-amber-400' : 'border-teal-400'
+              }`}>
                 <div className="flex items-start justify-between gap-3">
                   <div className="flex items-center gap-3 flex-1">
                     <div className="w-12 h-12 rounded-2xl bg-blue-950 flex items-center justify-center font-black text-teal-400 text-lg flex-shrink-0">
@@ -311,31 +283,52 @@ export default function GestionAgences({ onBack, profile }) {
 
                 {/* Expiration */}
                 {exp && (
-                  <div className="mt-3 flex items-center justify-between">
-                    <div>
-                      {exp.estExpire ? (
-                        <p className="text-xs font-bold text-rose-500">
-                          ⛔ Expiré le {exp.expiration.toLocaleDateString('fr-FR')}
-                        </p>
-                      ) : exp.joursRestants <= 3 ? (
-                        <p className="text-xs font-bold text-amber-500">
-                          ⚠️ Expire dans {exp.joursRestants} jour(s)
-                        </p>
-                      ) : (
-                        <p className="text-xs font-bold text-teal-500">
-                          ✅ Expire le {exp.expiration.toLocaleDateString('fr-FR')}
-                        </p>
-                      )}
-                      {a.essai_actif && (
-                        <p className="text-xs text-slate-400 mt-0.5">Période d'essai</p>
-                      )}
-                    </div>
-                    <button
-                      onClick={() => prolonger(a.id)}
-                      className="bg-teal-50 text-teal-600 px-3 py-1.5 rounded-lg text-xs font-black"
-                    >
-                      +30 jours
-                    </button>
+                  <div className="mt-3">
+                    {exp.estExpire ? (
+                      <p className="text-xs font-bold text-rose-500">
+                        ⛔ Expiré le {exp.expiration.toLocaleDateString('fr-FR')}
+                      </p>
+                    ) : exp.joursRestants <= 3 ? (
+                      <p className="text-xs font-bold text-amber-500">
+                        ⚠️ Expire dans {exp.joursRestants} jour(s)
+                      </p>
+                    ) : (
+                      <p className="text-xs font-bold text-teal-500">
+                        ✅ Expire le {exp.expiration.toLocaleDateString('fr-FR')} ({exp.joursRestants} jours restants)
+                      </p>
+                    )}
+
+                    {/* Modifier la durée */}
+                    {showDaysForm === a.id ? (
+                      <div className="flex gap-2 items-center mt-2">
+                        <input
+                          type="number"
+                          value={customDays}
+                          onChange={(e) => setCustomDays(e.target.value)}
+                          className="flex-1 p-2 rounded-xl border border-slate-200 bg-slate-50 text-sm"
+                          placeholder="Jours (négatif pour réduire)"
+                        />
+                        <button
+                          onClick={() => modifierDuree(a.id, customDays)}
+                          className="bg-teal-400 text-blue-950 px-3 py-2 rounded-xl text-xs font-black"
+                        >
+                          ✓
+                        </button>
+                        <button
+                          onClick={() => setShowDaysForm(null)}
+                          className="bg-slate-100 text-slate-500 px-3 py-2 rounded-xl text-xs font-black"
+                        >
+                          ✕
+                        </button>
+                      </div>
+                    ) : (
+                      <button
+                        onClick={() => { setShowDaysForm(a.id); setCustomDays(30) }}
+                        className="mt-2 bg-teal-50 text-teal-600 px-3 py-1.5 rounded-lg text-xs font-black"
+                      >
+                        ✏️ Modifier la durée
+                      </button>
+                    )}
                   </div>
                 )}
               </div>
