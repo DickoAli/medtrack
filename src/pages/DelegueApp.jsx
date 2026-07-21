@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { supabase } from '../supabase'
 import { saveVisiteLocally, getPendingVisites, deleteLocalVisite, countPendingVisites, isOnline } from '../offline'
+import Extranet from './Extranet'
 
 export default function DelegueApp({ session, profile }) {
   const [visites, setVisites] = useState([])
@@ -27,11 +28,22 @@ export default function DelegueApp({ session, profile }) {
   const [saving, setSaving] = useState(false)
   const [success, setSuccess] = useState(false)
 
- const { data: v } = await supabase
+  const fetchData = async () => {
+    const { data: v } = await supabase
       .from('visites')
       .select('*')
       .eq('delegate_id', profile.delegate_id)
       .order('created_at', { ascending: false })
+
+    const { data: p } = await supabase
+      .from('produits')
+      .select('*')
+      .order('nom')
+
+    setVisites(v || [])
+    setProduits(p || [])
+    setLoading(false)
+  }
 
   const startTracking = () => {
     if (!navigator.geolocation) return
@@ -84,17 +96,14 @@ export default function DelegueApp({ session, profile }) {
     startTracking()
     checkPending()
 
-    // Écoute temps réel des visites
     const channel = supabase
-      .channel('visites-changes')
+      .channel('visites-delegue')
       .on('postgres_changes', {
         event: '*',
         schema: 'public',
         table: 'visites',
         filter: `delegate_id=eq.${profile.delegate_id}`
-      }, () => {
-        fetchData()
-      })
+      }, () => { fetchData() })
       .subscribe()
 
     const interval = setInterval(fetchData, 30000)
@@ -141,11 +150,11 @@ export default function DelegueApp({ session, profile }) {
       longitude: form.type === 'immediate' ? position?.lng || null : null,
       type: form.type,
       date_prevue: form.date_prevue || null,
-      produits_ids: form.produits_ids,
+      agence_id: profile.agence_id,
     }
 
     if (!isOnline()) {
-      await saveVisiteLocally(visiteData)
+      await saveVisiteLocally({ ...visiteData, produits_ids: form.produits_ids })
       await checkPending()
       setSaving(false)
       setSuccess(true)
@@ -173,7 +182,7 @@ export default function DelegueApp({ session, profile }) {
       titre_contact: '', telephone_contact: '', statut: 'Réalisée',
       note: '', type: 'immediate', date_prevue: ''
     })
-    fetchData()
+    await fetchData()
     setTimeout(() => { setPage('accueil'); setSuccess(false) }, 1500)
   }
 
@@ -185,9 +194,12 @@ export default function DelegueApp({ session, profile }) {
 
   const todayStr = new Date().toISOString().slice(0, 10)
   const todayVisites = visites.filter((v) => v.created_at?.slice(0, 10) === todayStr)
-
   const TYPES_LIEU = ['CSRef', 'CSCom', 'Clinique', 'Cabinet de santé', 'Hôpital', 'Pharmacie', 'Autre']
   const TITRES = ['Médecin généraliste', 'Spécialiste', 'Pharmacien', 'Infirmier', 'Directeur', 'Autre']
+
+  if (page === 'extranet') return (
+    <Extranet profile={profile} onBack={() => setPage('accueil')} />
+  )
 
   return (
     <div className="min-h-screen bg-slate-100">
@@ -223,7 +235,7 @@ export default function DelegueApp({ session, profile }) {
         </span>
       </div>
 
-      {/* Bannière hors ligne */}
+      {/* Hors ligne */}
       {!navigator.onLine && (
         <div className="bg-rose-500 px-6 py-2 text-xs font-bold flex items-center gap-2">
           <span>📵</span>
@@ -231,7 +243,7 @@ export default function DelegueApp({ session, profile }) {
         </div>
       )}
 
-      {/* Bannière synchronisation */}
+      {/* Sync */}
       {pendingCount > 0 && navigator.onLine && (
         <div className="bg-amber-500 px-6 py-2 text-xs font-bold flex items-center justify-between">
           <span className="text-white">⏳ {pendingCount} visite(s) en attente</span>
@@ -295,7 +307,7 @@ export default function DelegueApp({ session, profile }) {
                 {todayVisites.map((v) => (
                   <div key={v.id} className="bg-white rounded-2xl p-4">
                     <div className="flex items-center justify-between">
-                      <p className="font-bold text-blue-950 text-sm">{v.nom_contact || v.medecins?.nom}</p>
+                      <p className="font-bold text-blue-950 text-sm">{v.nom_contact || '—'}</p>
                       <span className={`text-xs font-bold px-2 py-1 rounded-full ${v.statut === 'Réalisée' ? 'bg-teal-100 text-teal-600' : 'bg-rose-100 text-rose-500'}`}>
                         {v.statut}
                       </span>
@@ -320,11 +332,8 @@ export default function DelegueApp({ session, profile }) {
 
           <div>
             <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Type de visite</label>
-            <select
-              value={form.type}
-              onChange={(e) => set('type', e.target.value)}
-              className="w-full mt-1 p-3 rounded-xl border border-slate-200 bg-white text-sm"
-            >
+            <select value={form.type} onChange={(e) => set('type', e.target.value)}
+              className="w-full mt-1 p-3 rounded-xl border border-slate-200 bg-white text-sm">
               <option value="immediate">Visite immédiate</option>
               <option value="planifiee">Planifier pour plus tard</option>
             </select>
@@ -333,22 +342,15 @@ export default function DelegueApp({ session, profile }) {
           {form.type === 'planifiee' && (
             <div>
               <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Date et heure prévue</label>
-              <input
-                type="datetime-local"
-                value={form.date_prevue}
-                onChange={(e) => set('date_prevue', e.target.value)}
-                className="w-full mt-1 p-3 rounded-xl border border-slate-200 bg-white text-sm"
-              />
+              <input type="datetime-local" value={form.date_prevue} onChange={(e) => set('date_prevue', e.target.value)}
+                className="w-full mt-1 p-3 rounded-xl border border-slate-200 bg-white text-sm" />
             </div>
           )}
 
           <div>
             <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Type de lieu *</label>
-            <select
-              value={form.type_lieu}
-              onChange={(e) => set('type_lieu', e.target.value)}
-              className="w-full mt-1 p-3 rounded-xl border border-slate-200 bg-white text-sm"
-            >
+            <select value={form.type_lieu} onChange={(e) => set('type_lieu', e.target.value)}
+              className="w-full mt-1 p-3 rounded-xl border border-slate-200 bg-white text-sm">
               <option value="">Sélectionner le lieu</option>
               {TYPES_LIEU.map((t) => <option key={t}>{t}</option>)}
             </select>
@@ -356,21 +358,14 @@ export default function DelegueApp({ session, profile }) {
 
           <div>
             <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Nom du contact *</label>
-            <input
-              value={form.nom_contact}
-              onChange={(e) => set('nom_contact', e.target.value)}
-              className="w-full mt-1 p-3 rounded-xl border border-slate-200 bg-white text-sm"
-              placeholder="Nom et prénom"
-            />
+            <input value={form.nom_contact} onChange={(e) => set('nom_contact', e.target.value)}
+              className="w-full mt-1 p-3 rounded-xl border border-slate-200 bg-white text-sm" placeholder="Nom et prénom" />
           </div>
 
           <div>
             <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Titre / Fonction</label>
-            <select
-              value={form.titre_contact}
-              onChange={(e) => set('titre_contact', e.target.value)}
-              className="w-full mt-1 p-3 rounded-xl border border-slate-200 bg-white text-sm"
-            >
+            <select value={form.titre_contact} onChange={(e) => set('titre_contact', e.target.value)}
+              className="w-full mt-1 p-3 rounded-xl border border-slate-200 bg-white text-sm">
               <option value="">Sélectionner</option>
               {TITRES.map((t) => <option key={t}>{t}</option>)}
             </select>
@@ -378,13 +373,8 @@ export default function DelegueApp({ session, profile }) {
 
           <div>
             <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Téléphone du contact</label>
-            <input
-              type="tel"
-              value={form.telephone_contact}
-              onChange={(e) => set('telephone_contact', e.target.value)}
-              className="w-full mt-1 p-3 rounded-xl border border-slate-200 bg-white text-sm"
-              placeholder="00223XXXXXXXX"
-            />
+            <input type="tel" value={form.telephone_contact} onChange={(e) => set('telephone_contact', e.target.value)}
+              className="w-full mt-1 p-3 rounded-xl border border-slate-200 bg-white text-sm" placeholder="00223XXXXXXXX" />
           </div>
 
           <div>
@@ -427,11 +417,8 @@ export default function DelegueApp({ session, profile }) {
           {form.type === 'immediate' && (
             <div>
               <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Statut</label>
-              <select
-                value={form.statut}
-                onChange={(e) => set('statut', e.target.value)}
-                className="w-full mt-1 p-3 rounded-xl border border-slate-200 bg-white text-sm"
-              >
+              <select value={form.statut} onChange={(e) => set('statut', e.target.value)}
+                className="w-full mt-1 p-3 rounded-xl border border-slate-200 bg-white text-sm">
                 <option>Réalisée</option>
                 <option>Non aboutie</option>
               </select>
@@ -440,12 +427,9 @@ export default function DelegueApp({ session, profile }) {
 
           <div>
             <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Note / Compte-rendu</label>
-            <textarea
-              value={form.note}
-              onChange={(e) => set('note', e.target.value)}
+            <textarea value={form.note} onChange={(e) => set('note', e.target.value)}
               className="w-full mt-1 p-3 rounded-xl border border-slate-200 bg-white text-sm h-24 resize-none"
-              placeholder="Observations, prochaines étapes..."
-            />
+              placeholder="Observations, prochaines étapes..." />
           </div>
 
           <div className={`rounded-xl p-3 flex items-center gap-2 ${position ? 'bg-teal-50 border border-teal-200' : 'bg-amber-50 border border-amber-200'}`}>
@@ -455,11 +439,8 @@ export default function DelegueApp({ session, profile }) {
             </p>
           </div>
 
-          <button
-            onClick={handleSave}
-            disabled={saving}
-            className="w-full bg-teal-400 text-blue-950 font-black py-4 rounded-2xl text-sm"
-          >
+          <button onClick={handleSave} disabled={saving}
+            className="w-full bg-teal-400 text-blue-950 font-black py-4 rounded-2xl text-sm">
             {saving ? 'Enregistrement...' : 'Enregistrer la visite'}
           </button>
         </div>
@@ -477,11 +458,10 @@ export default function DelegueApp({ session, profile }) {
             visites.map((v) => (
               <div key={v.id} className={`bg-white rounded-2xl p-4 border-l-4 ${
                 v.statut === 'Réalisée' ? 'border-teal-400' :
-                v.statut === 'Planifiée' ? 'border-amber-400' :
-                'border-rose-400'
+                v.statut === 'Planifiée' ? 'border-amber-400' : 'border-rose-400'
               }`}>
                 <div className="flex items-center justify-between mb-1">
-                  <p className="font-bold text-blue-950 text-sm">{v.nom_contact || v.medecins?.nom || '—'}</p>
+                  <p className="font-bold text-blue-950 text-sm">{v.nom_contact || '—'}</p>
                   <span className={`text-xs font-bold px-2 py-1 rounded-full ${
                     v.statut === 'Réalisée' ? 'bg-teal-100 text-teal-600' :
                     v.statut === 'Planifiée' ? 'bg-amber-100 text-amber-600' :
@@ -505,9 +485,7 @@ export default function DelegueApp({ session, profile }) {
             ))
           )}
         </div>
-      )}{page === 'extranet' && (
-  <Extranet profile={profile} onBack={() => setPage('accueil')} />
-)}
+      )}
     </div>
   )
 }
