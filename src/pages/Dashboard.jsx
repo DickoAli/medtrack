@@ -22,8 +22,26 @@ export default function Dashboard({ session, profile, agence }) {
 
   useEffect(() => {
     fetchData()
+
+    // Écoute temps réel des visites
+    const channel = supabase
+      .channel('dashboard-changes')
+      .on('postgres_changes', {
+        event: '*',
+        schema: 'public',
+        table: 'visites',
+        filter: `agence_id=eq.${profile.agence_id}`
+      }, () => {
+        fetchData()
+      })
+      .subscribe()
+
     const interval = setInterval(fetchData, 30000)
-    return () => clearInterval(interval)
+
+    return () => {
+      clearInterval(interval)
+      supabase.removeChannel(channel)
+    }
   }, [])
 
   const fetchData = async () => {

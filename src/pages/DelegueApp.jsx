@@ -91,29 +91,30 @@ export default function DelegueApp({ session, profile }) {
     fetchData()
     startTracking()
     checkPending()
+
+    // Écoute temps réel des visites
+    const channel = supabase
+      .channel('visites-changes')
+      .on('postgres_changes', {
+        event: '*',
+        schema: 'public',
+        table: 'visites',
+        filter: `delegate_id=eq.${profile.delegate_id}`
+      }, () => {
+        fetchData()
+      })
+      .subscribe()
+
+    const interval = setInterval(fetchData, 30000)
     window.addEventListener('online', syncPendingVisites)
 
-    // Intercepter le bouton retour Android
-    const handleBackButton = (e) => {
-      e.preventDefault()
-      if (page !== 'accueil') {
-        setPage('accueil')
-      } else {
-        if (window.confirm('Voulez-vous quitter MedTrack ?')) {
-          window.history.back()
-        }
-      }
-    }
-
-    window.history.pushState(null, '', window.location.href)
-    window.addEventListener('popstate', handleBackButton)
-
     return () => {
+      clearInterval(interval)
+      supabase.removeChannel(channel)
       if (watchRef.current) navigator.geolocation.clearWatch(watchRef.current)
       window.removeEventListener('online', syncPendingVisites)
-      window.removeEventListener('popstate', handleBackButton)
     }
-  }, [page])
+  }, [])
 
   const set = (k, v) => setForm((f) => ({ ...f, [k]: v }))
 
