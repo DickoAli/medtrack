@@ -27,19 +27,11 @@ export default function DelegueApp({ session, profile }) {
   const [saving, setSaving] = useState(false)
   const [success, setSuccess] = useState(false)
 
-  const fetchData = async () => {
-    const { data: v } = await supabase
+ const { data: v } = await supabase
       .from('visites')
-      .select('*, medecins(*)')
+      .select('*')
       .eq('delegate_id', profile.delegate_id)
       .order('created_at', { ascending: false })
-
-    const { data: p } = await supabase.from('produits').select('*').order('nom')
-
-    setVisites(v || [])
-    setProduits(p || [])
-    setLoading(false)
-  }
 
   const startTracking = () => {
     if (!navigator.geolocation) return
