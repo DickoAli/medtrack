@@ -12,6 +12,7 @@ export default function DelegueApp({ session, profile }) {
   const [pendingCount, setPendingCount] = useState(0)
   const [syncing, setSyncing] = useState(false)
   const watchRef = useRef(null)
+  const photoRef = useRef(null)
 
   const [form, setForm] = useState({
     medecin_id: '',
@@ -24,6 +25,8 @@ export default function DelegueApp({ session, profile }) {
     note: '',
     type: 'immediate',
     date_prevue: '',
+    photo: null,
+    photoPreview: null,
   })
   const [saving, setSaving] = useState(false)
   const [success, setSuccess] = useState(false)
@@ -136,6 +139,19 @@ export default function DelegueApp({ session, profile }) {
 
     setSaving(true)
 
+    let photo_url = null
+
+    if (form.photo && isOnline()) {
+      const fileName = `${profile.delegate_id}/${Date.now()}_${form.photo.name}`
+      const { error: uploadError } = await supabase.storage
+        .from('PHOTOS')
+        .upload(fileName, form.photo)
+      if (!uploadError) {
+        const { data: urlData } = supabase.storage.from('PHOTOS').getPublicUrl(fileName)
+        photo_url = urlData.publicUrl
+      }
+    }
+
     const visiteData = {
       delegate_id: profile.delegate_id,
       medecin_id: form.medecin_id || null,
@@ -151,6 +167,7 @@ export default function DelegueApp({ session, profile }) {
       type: form.type,
       date_prevue: form.date_prevue || null,
       agence_id: profile.agence_id,
+      photo_url,
     }
 
     if (!isOnline()) {
@@ -161,7 +178,7 @@ export default function DelegueApp({ session, profile }) {
       setForm({
         medecin_id: '', produits_ids: [], type_lieu: '', nom_contact: '',
         titre_contact: '', telephone_contact: '', statut: 'Réalisée',
-        note: '', type: 'immediate', date_prevue: ''
+        note: '', type: 'immediate', date_prevue: '', photo: null, photoPreview: null
       })
       setTimeout(() => { setPage('accueil'); setSuccess(false) }, 1500)
       return
@@ -180,7 +197,7 @@ export default function DelegueApp({ session, profile }) {
     setForm({
       medecin_id: '', produits_ids: [], type_lieu: '', nom_contact: '',
       titre_contact: '', telephone_contact: '', statut: 'Réalisée',
-      note: '', type: 'immediate', date_prevue: ''
+      note: '', type: 'immediate', date_prevue: '', photo: null, photoPreview: null
     })
     await fetchData()
     setTimeout(() => { setPage('accueil'); setSuccess(false) }, 1500)
@@ -313,6 +330,10 @@ export default function DelegueApp({ session, profile }) {
                       </span>
                     </div>
                     <p className="text-xs text-slate-400 mt-1">{v.type_lieu} · {v.produit}</p>
+                    {v.photo_url && (
+                      <img src={v.photo_url} alt="Photo" className="w-full h-32 object-cover rounded-xl mt-2 cursor-pointer"
+                        onClick={() => window.open(v.photo_url, '_blank')} />
+                    )}
                   </div>
                 ))}
               </div>
@@ -432,6 +453,44 @@ export default function DelegueApp({ session, profile }) {
               placeholder="Observations, prochaines étapes..." />
           </div>
 
+          {/* Photo */}
+          <div>
+            <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Photo de la visite</label>
+            <input
+              ref={photoRef}
+              type="file"
+              accept="image/*"
+              capture="environment"
+              onChange={(e) => {
+                const file = e.target.files[0]
+                if (file) {
+                  set('photo', file)
+                  set('photoPreview', URL.createObjectURL(file))
+                }
+              }}
+              className="hidden"
+            />
+            {form.photoPreview ? (
+              <div className="mt-2 relative">
+                <img src={form.photoPreview} alt="Preview" className="w-full h-40 object-cover rounded-xl" />
+                <button
+                  onClick={() => { set('photo', null); set('photoPreview', null) }}
+                  className="absolute top-2 right-2 bg-rose-500 text-white px-2 py-1 rounded-lg text-xs font-black"
+                >
+                  ✕
+                </button>
+              </div>
+            ) : (
+              <button
+                onClick={() => photoRef.current.click()}
+                className="w-full mt-1 border-2 border-dashed border-slate-200 rounded-xl p-4 text-center text-slate-400 text-sm"
+              >
+                📷 Prendre une photo
+              </button>
+            )}
+          </div>
+
+          {/* GPS */}
           <div className={`rounded-xl p-3 flex items-center gap-2 ${position ? 'bg-teal-50 border border-teal-200' : 'bg-amber-50 border border-amber-200'}`}>
             <span>{position ? '📍' : '⚠️'}</span>
             <p className="text-xs font-bold text-slate-600">
@@ -478,6 +537,14 @@ export default function DelegueApp({ session, profile }) {
                   <p className="text-xs text-amber-500 font-bold mt-1">
                     📅 {new Date(v.date_prevue).toLocaleString('fr-FR')}
                   </p>
+                )}
+                {v.photo_url && (
+                  <img
+                    src={v.photo_url}
+                    alt="Photo visite"
+                    className="w-full h-32 object-cover rounded-xl mt-2 cursor-pointer"
+                    onClick={() => window.open(v.photo_url, '_blank')}
+                  />
                 )}
                 {v.note && <p className="text-xs text-slate-500 italic mt-1">{v.note}</p>}
                 <p className="text-xs text-slate-300 mt-2">{v.created_at?.slice(0, 10)}</p>
