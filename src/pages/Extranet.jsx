@@ -9,6 +9,7 @@ export default function Extranet({ onBack, profile }) {
   const [saving, setSaving] = useState(false)
   const [successMsg, setSuccessMsg] = useState('')
   const [showCredentials, setShowCredentials] = useState(null)
+  const [showPassword, setShowPassword] = useState(false)
   const [form, setForm] = useState({
     nom: '', url: '', identifiant: '', mot_de_passe: '', note: ''
   })
@@ -30,9 +31,7 @@ export default function Extranet({ onBack, profile }) {
   const handleSave = async () => {
     if (!form.nom || !form.url) { alert('Le nom et l\'URL sont obligatoires'); return }
     setSaving(true)
-
     const url = form.url.startsWith('http') ? form.url : `https://${form.url}`
-
     if (editing) {
       await supabase.from('extranets').update({
         nom: form.nom, url, identifiant: form.identifiant,
@@ -45,7 +44,6 @@ export default function Extranet({ onBack, profile }) {
         agence_id: profile.agence_id
       })
     }
-
     setSaving(false)
     setShowForm(false)
     setEditing(null)
@@ -70,6 +68,7 @@ export default function Extranet({ onBack, profile }) {
   const handleOpen = (extranet) => {
     if (extranet.identifiant) {
       setShowCredentials(extranet)
+      setShowPassword(false)
     } else {
       window.open(extranet.url, '_blank')
     }
@@ -121,7 +120,10 @@ export default function Extranet({ onBack, profile }) {
                 <div className="flex items-center justify-between">
                   <p className="font-black text-blue-950">{showCredentials.identifiant}</p>
                   <button
-                    onClick={() => navigator.clipboard.writeText(showCredentials.identifiant)}
+                    onClick={() => {
+                      navigator.clipboard.writeText(showCredentials.identifiant)
+                      alert('Identifiant copié !')
+                    }}
                     className="bg-blue-50 text-blue-600 px-2 py-1 rounded-lg text-xs font-bold"
                   >
                     Copier
@@ -131,10 +133,21 @@ export default function Extranet({ onBack, profile }) {
 
               <div className="bg-slate-50 rounded-xl p-3">
                 <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Mot de passe</p>
-                <div className="flex items-center justify-between">
-                  <p className="font-black text-blue-950">{showCredentials.mot_de_passe}</p>
+                <div className="flex items-center justify-between gap-2">
+                  <p className="font-black text-blue-950 flex-1">
+                    {showPassword ? showCredentials.mot_de_passe : '••••••••••'}
+                  </p>
                   <button
-                    onClick={() => navigator.clipboard.writeText(showCredentials.mot_de_passe)}
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="bg-slate-100 text-slate-500 px-2 py-1 rounded-lg text-xs font-bold"
+                  >
+                    {showPassword ? '🙈' : '👁️'}
+                  </button>
+                  <button
+                    onClick={() => {
+                      navigator.clipboard.writeText(showCredentials.mot_de_passe)
+                      alert('Mot de passe copié !')
+                    }}
                     className="bg-blue-50 text-blue-600 px-2 py-1 rounded-lg text-xs font-bold"
                   >
                     Copier
@@ -179,61 +192,41 @@ export default function Extranet({ onBack, profile }) {
             <div className="flex flex-col gap-4">
               <div>
                 <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Nom du grossiste *</label>
-                <input
-                  value={form.nom}
-                  onChange={(e) => set('nom', e.target.value)}
+                <input value={form.nom} onChange={(e) => set('nom', e.target.value)}
                   className="w-full mt-1 p-3 rounded-xl border border-slate-200 bg-slate-50 text-sm"
-                  placeholder="Ex: CAMED SA"
-                />
+                  placeholder="Ex: CAMED SA" />
               </div>
               <div>
                 <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">URL du site *</label>
-                <input
-                  value={form.url}
-                  onChange={(e) => set('url', e.target.value)}
+                <input value={form.url} onChange={(e) => set('url', e.target.value)}
                   className="w-full mt-1 p-3 rounded-xl border border-slate-200 bg-slate-50 text-sm"
-                  placeholder="Ex: www.camed.ml"
-                />
+                  placeholder="Ex: www.camed.ml" />
               </div>
               <div>
                 <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Identifiant</label>
-                <input
-                  value={form.identifiant}
-                  onChange={(e) => set('identifiant', e.target.value)}
+                <input value={form.identifiant} onChange={(e) => set('identifiant', e.target.value)}
                   className="w-full mt-1 p-3 rounded-xl border border-slate-200 bg-slate-50 text-sm"
-                  placeholder="Identifiant de connexion"
-                />
+                  placeholder="Identifiant de connexion" />
               </div>
               <div>
                 <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Mot de passe</label>
-                <input
-                  value={form.mot_de_passe}
-                  onChange={(e) => set('mot_de_passe', e.target.value)}
+                <input value={form.mot_de_passe} onChange={(e) => set('mot_de_passe', e.target.value)}
                   className="w-full mt-1 p-3 rounded-xl border border-slate-200 bg-slate-50 text-sm"
-                  placeholder="Mot de passe extranet"
-                />
+                  placeholder="Mot de passe extranet" />
               </div>
               <div>
                 <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Note</label>
-                <textarea
-                  value={form.note}
-                  onChange={(e) => set('note', e.target.value)}
+                <textarea value={form.note} onChange={(e) => set('note', e.target.value)}
                   className="w-full mt-1 p-3 rounded-xl border border-slate-200 bg-slate-50 text-sm h-16 resize-none"
-                  placeholder="Informations supplémentaires..."
-                />
+                  placeholder="Informations supplémentaires..." />
               </div>
               <div className="flex gap-3">
-                <button
-                  onClick={() => { setShowForm(false); setEditing(null) }}
-                  className="flex-1 bg-slate-100 text-slate-600 font-black py-3 rounded-xl text-sm"
-                >
+                <button onClick={() => { setShowForm(false); setEditing(null) }}
+                  className="flex-1 bg-slate-100 text-slate-600 font-black py-3 rounded-xl text-sm">
                   Annuler
                 </button>
-                <button
-                  onClick={handleSave}
-                  disabled={saving}
-                  className="flex-1 bg-teal-400 text-blue-950 font-black py-3 rounded-xl text-sm"
-                >
+                <button onClick={handleSave} disabled={saving}
+                  className="flex-1 bg-teal-400 text-blue-950 font-black py-3 rounded-xl text-sm">
                   {saving ? '...' : 'Enregistrer'}
                 </button>
               </div>

@@ -6,6 +6,7 @@ export default function Login() {
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
+  const [showPassword, setShowPassword] = useState(false)
 
   const handleLogin = async () => {
     setLoading(true)
@@ -36,20 +37,30 @@ export default function Login() {
           </div>
           <div>
             <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Mot de passe</label>
-            <input
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && handleLogin()}
-              className="w-full mt-1 p-3 rounded-xl border border-slate-200 bg-slate-50 text-sm focus:outline-none focus:border-teal-400"
-              placeholder="••••••••"
-            />
+            <div className="relative mt-1">
+              <input
+                type={showPassword ? 'text' : 'password'}
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && handleLogin()}
+                className="w-full p-3 rounded-xl border border-slate-200 bg-slate-50 text-sm focus:outline-none focus:border-teal-400 pr-12"
+                placeholder="••••••••"
+              />
+              <button
+                onClick={() => setShowPassword(!showPassword)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 text-lg"
+              >
+                {showPassword ? '🙈' : '👁️'}
+              </button>
+            </div>
           </div>
+
           {error && (
             <div className="bg-rose-50 border border-rose-200 rounded-xl p-3">
               <p className="text-rose-500 text-xs font-bold text-center">{error}</p>
             </div>
           )}
+
           <button
             onClick={handleLogin}
             disabled={loading}

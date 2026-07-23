@@ -138,7 +138,8 @@ export default function DelegueApp({ session, profile }) {
     if (form.type === 'planifiee' && !form.date_prevue) { alert('Choisissez une date'); return }
 
     setSaving(true)
-
+console.log('form.photo:', form.photo)
+console.log('isOnline:', isOnline())
     let photo_url = null
 
    if (form.photo && isOnline()) {
