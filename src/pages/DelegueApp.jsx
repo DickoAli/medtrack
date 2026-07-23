@@ -141,14 +141,17 @@ export default function DelegueApp({ session, profile }) {
 
     let photo_url = null
 
-    if (form.photo && isOnline()) {
+   if (form.photo && isOnline()) {
       const fileName = `${profile.delegate_id}/${Date.now()}_${form.photo.name}`
       const { error: uploadError } = await supabase.storage
         .from('PHOTOS')
         .upload(fileName, form.photo)
       if (!uploadError) {
-        const { data: urlData } = supabase.storage.from('PHOTOS').getPublicUrl(fileName)
-        photo_url = urlData.publicUrl
+        const { data: urlData } = supabase.storage
+          .from('PHOTOS')
+          .getPublicUrl(fileName)
+        photo_url = `${import.meta.env.VITE_SUPABASE_URL}/storage/v1/object/public/PHOTOS/${fileName}`
+        console.log('photo_url:', photo_url)
       }
     }
 
