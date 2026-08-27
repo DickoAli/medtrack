@@ -1,3 +1,4 @@
+import GestionProfessionnels from './GestionProfessionnels'
 import GestionEtablissements from './GestionEtablissements'
 import GestionTerritoires from './GestionTerritoires'
 import { useState, useEffect } from 'react'
@@ -69,6 +70,9 @@ export default function Dashboard({ session, profile, agence }) {
       <p className="text-teal-500 font-bold">Chargement...</p>
     </div>
   )
+  if (page === 'professionnels') return (
+  <GestionProfessionnels profile={profile} onBack={() => setPage('dashboard')} />
+)
   if (page === 'etablissements') return (
   <GestionEtablissements profile={profile} onBack={() => setPage('dashboard')} />
 )
@@ -188,6 +192,12 @@ if (page === 'territoires') return (
         <button onClick={() => setPage('carte')} className="w-full bg-blue-950 text-white font-black py-4 rounded-2xl text-sm hover:bg-blue-900 transition-colors">
           🗺️ Carte des délégués
         </button>
+        <button
+  onClick={() => setPage('professionnels')}
+  className="w-full bg-indigo-700 text-white font-black py-4 rounded-2xl text-sm hover:bg-indigo-600 transition-colors"
+>
+  👨‍⚕️ Professionnels de santé
+</button>
         <button
   onClick={() => setPage('etablissements')}
   className="w-full bg-red-700 text-white font-black py-4 rounded-2xl text-sm hover:bg-red-600 transition-colors"
