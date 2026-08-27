@@ -1,3 +1,4 @@
+import GestionTerritoires from './GestionTerritoires'
 import { useState, useEffect } from 'react'
 import { supabase } from '../supabase'
 import NouvelleVisite from './NouvelleVisite'
@@ -67,7 +68,9 @@ export default function Dashboard({ session, profile, agence }) {
       <p className="text-teal-500 font-bold">Chargement...</p>
     </div>
   )
-
+if (page === 'territoires') return (
+  <GestionTerritoires profile={profile} onBack={() => setPage('dashboard')} />
+)
   if (page === 'nouvelle-visite') return (
     <NouvelleVisite profile={profile} onBack={() => { setPage('dashboard'); fetchData() }} />
   )
@@ -184,6 +187,12 @@ export default function Dashboard({ session, profile, agence }) {
         <button onClick={() => setPage('statistiques')} className="w-full bg-purple-600 text-white font-black py-4 rounded-2xl text-sm hover:bg-purple-500 transition-colors">
           📊 Statistiques par délégué
         </button>
+        <button
+  onClick={() => setPage('territoires')}
+  className="w-full bg-violet-600 text-white font-black py-4 rounded-2xl text-sm hover:bg-violet-500 transition-colors"
+>
+  🗺️ Territoires
+</button>
         <button onClick={() => setPage('stats-avancees')} className="w-full bg-indigo-600 text-white font-black py-4 rounded-2xl text-sm hover:bg-indigo-500 transition-colors">
           📈 Statistiques avancées
         </button>
