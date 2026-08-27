@@ -1,3 +1,4 @@
+import PlanificationVisites from './PlanificationVisites'
 import GestionPortefeuille from './GestionPortefeuille'
 import GestionCampagnes from './GestionCampagnes'
 import GestionProfessionnels from './GestionProfessionnels'
@@ -72,6 +73,9 @@ export default function Dashboard({ session, profile, agence }) {
       <p className="text-teal-500 font-bold">Chargement...</p>
     </div>
   )
+  if (page === 'planification') return (
+  <PlanificationVisites profile={profile} onBack={() => setPage('dashboard')} />
+)
   if (page === 'portefeuille') return (
   <GestionPortefeuille profile={profile} onBack={() => setPage('dashboard')} />
 )
@@ -200,6 +204,12 @@ if (page === 'territoires') return (
         <button onClick={() => setPage('carte')} className="w-full bg-blue-950 text-white font-black py-4 rounded-2xl text-sm hover:bg-blue-900 transition-colors">
           🗺️ Carte des délégués
         </button>
+        <button
+  onClick={() => setPage('planification')}
+  className="w-full bg-teal-700 text-white font-black py-4 rounded-2xl text-sm hover:bg-teal-600 transition-colors"
+>
+  📅 Planification visites
+</button>
         <button
   onClick={() => setPage('portefeuille')}
   className="w-full bg-purple-700 text-white font-black py-4 rounded-2xl text-sm hover:bg-purple-600 transition-colors"
