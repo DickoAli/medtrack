@@ -1,3 +1,4 @@
+import GestionEtablissements from './GestionEtablissements'
 import GestionTerritoires from './GestionTerritoires'
 import { useState, useEffect } from 'react'
 import { supabase } from '../supabase'
@@ -68,6 +69,9 @@ export default function Dashboard({ session, profile, agence }) {
       <p className="text-teal-500 font-bold">Chargement...</p>
     </div>
   )
+  if (page === 'etablissements') return (
+  <GestionEtablissements profile={profile} onBack={() => setPage('dashboard')} />
+)
 if (page === 'territoires') return (
   <GestionTerritoires profile={profile} onBack={() => setPage('dashboard')} />
 )
@@ -184,6 +188,12 @@ if (page === 'territoires') return (
         <button onClick={() => setPage('carte')} className="w-full bg-blue-950 text-white font-black py-4 rounded-2xl text-sm hover:bg-blue-900 transition-colors">
           🗺️ Carte des délégués
         </button>
+        <button
+  onClick={() => setPage('etablissements')}
+  className="w-full bg-red-700 text-white font-black py-4 rounded-2xl text-sm hover:bg-red-600 transition-colors"
+>
+  🏥 Établissements
+</button>
         <button onClick={() => setPage('statistiques')} className="w-full bg-purple-600 text-white font-black py-4 rounded-2xl text-sm hover:bg-purple-500 transition-colors">
           📊 Statistiques par délégué
         </button>
