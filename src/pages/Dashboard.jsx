@@ -1,3 +1,4 @@
+import GestionVentes from './GestionVentes'
 import GestionContenu from './GestionContenu'
 import { useState, useEffect } from 'react'
 import { supabase } from '../supabase'
@@ -81,6 +82,7 @@ export default function Dashboard({ session, profile, agence }) {
 
   // Pages
   const pages = {
+    ventes: <GestionVentes profile={profile} onBack={() => setPage('dashboard')} />,
     contenu: <GestionContenu profile={profile} onBack={() => setPage('dashboard')} />,
     carte: <Carte profile={profile} onBack={() => setPage('dashboard')} />,
     statistiques: <Statistiques profile={profile} onBack={() => setPage('dashboard')} />,
@@ -365,6 +367,10 @@ export default function Dashboard({ session, profile, agence }) {
         <div>
           <p className="text-xs font-black text-slate-400 uppercase tracking-wider mb-3">Configuration</p>
           <div className="flex flex-col gap-3">
+            <button onClick={() => setPage('ventes')}
+  className="w-full bg-green-700 text-white font-black py-4 rounded-2xl text-sm">
+  💰 Ventes & Grossistes
+</button>
             <button onClick={() => setPage('campagnes')} className="w-full bg-orange-600 text-white font-black py-4 rounded-2xl text-sm">🎯 Campagnes</button>
             <button onClick={() => setPage('professionnels')} className="w-full bg-indigo-700 text-white font-black py-4 rounded-2xl text-sm">👨‍⚕️ Professionnels de santé</button>
             <button onClick={() => setPage('etablissements')} className="w-full bg-red-700 text-white font-black py-4 rounded-2xl text-sm">🏥 Établissements</button>

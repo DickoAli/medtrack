@@ -702,6 +702,61 @@ setSupports(s || [])
           )}
         </div>
       )}
+      {page === 'supports' && (
+  <div className="p-6 flex flex-col gap-3 pb-10">
+    <p className="text-xs font-black text-blue-950 uppercase tracking-wider">
+      {supports.length} support{supports.length > 1 ? 's' : ''} disponible{supports.length > 1 ? 's' : ''}
+    </p>
+
+    {supports.length === 0 ? (
+      <div className="bg-white rounded-2xl p-8 text-center">
+        <p className="text-4xl mb-3">📚</p>
+        <p className="text-slate-400 text-sm">Aucun support disponible</p>
+      </div>
+    ) : (
+      supports.map(s => {
+        const TYPE_ICONS = {
+          pdf: '📄', image: '🖼️', video: '🎥',
+          presentation: '📊', document: '📝'
+        }
+        const TYPE_COLORS = {
+          pdf: 'bg-red-100 text-red-600',
+          image: 'bg-blue-100 text-blue-600',
+          video: 'bg-purple-100 text-purple-600',
+          presentation: 'bg-amber-100 text-amber-600',
+          document: 'bg-slate-100 text-slate-500'
+        }
+        return (
+          <div key={s.id} className="bg-white rounded-2xl p-4">
+            <div className="flex items-start gap-3">
+              <span className={`w-10 h-10 rounded-xl flex items-center justify-center text-lg flex-shrink-0 ${TYPE_COLORS[s.type]}`}>
+                {TYPE_ICONS[s.type]}
+              </span>
+              <div className="flex-1 min-w-0">
+                <p className="font-black text-blue-950 text-sm truncate">{s.nom}</p>
+                {s.laboratoires && <p className="text-xs text-slate-400">🧪 {s.laboratoires.nom}</p>}
+                {s.produits && <p className="text-xs text-slate-400">💊 {s.produits.nom}</p>}
+                {s.campaigns && <p className="text-xs text-slate-400">🎯 {s.campaigns.nom}</p>}
+                <div className="flex gap-2 mt-2">
+                  <span className="text-xs text-slate-400">v{s.version}</span>
+                  {s.is_offline && (
+                    <span className="text-xs bg-blue-50 text-blue-600 font-bold px-2 py-0.5 rounded-full">
+                      📵 Offline
+                    </span>
+                  )}
+                </div>
+              </div>
+              <a href={s.file_url} target="_blank" rel="noreferrer"
+                className="bg-teal-400 text-blue-950 px-3 py-2 rounded-xl text-xs font-black flex-shrink-0">
+                Ouvrir
+              </a>
+            </div>
+          </div>
+        )
+      })
+    )}
+  </div>
+)}
     </div>
   )
 }
