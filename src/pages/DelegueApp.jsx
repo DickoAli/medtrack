@@ -4,6 +4,7 @@ import { saveVisiteLocally, getPendingVisites, deleteLocalVisite, countPendingVi
 import Extranet from './Extranet'
 
 export default function DelegueApp({ session, profile }) {
+  const [supports, setSupports] = useState([])
   const [visites, setVisites] = useState([])
   const [produits, setProduits] = useState([])
   const [portfolio, setPortfolio] = useState([])
@@ -28,6 +29,13 @@ export default function DelegueApp({ session, profile }) {
   const [success, setSuccess] = useState(false)
 
   const fetchData = async () => {
+    const { data: s } = await supabase
+  .from('content_assets')
+  .select('*, produits(nom), campaigns(nom), laboratoires(nom)')
+  .eq('agence_id', profile.agence_id)
+  .eq('is_published', true)
+  .order('created_at', { ascending: false })
+setSupports(s || [])
     const [{ data: v }, { data: p }, { data: po }, { data: ag }] = await Promise.all([
       supabase.from('visites').select('*').eq('delegate_id', profile.delegate_id).order('created_at', { ascending: false }),
       supabase.from('produits').select('*').eq('agence_id', profile.agence_id).eq('statut_produit', 'Normal').order('nom'),
@@ -297,6 +305,7 @@ export default function DelegueApp({ session, profile }) {
       {/* Nav */}
       <div className="bg-white flex border-b border-slate-200">
         {[
+          { id: 'supports', label: '📚' },
           { id: 'accueil', label: '🏠' },
           { id: 'agenda', label: '📅 Agenda' },
           { id: 'portefeuille', label: '👜 Cibles' },
