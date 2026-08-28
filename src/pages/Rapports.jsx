@@ -4,121 +4,150 @@ import * as XLSX from 'xlsx'
 import { saveAs } from 'file-saver'
 
 export default function Rapports({ onBack, profile }) {
-  const [delegates, setDelegates] = useState([])
   const [visites, setVisites] = useState([])
+  const [delegates, setDelegates] = useState([])
+  const [campagnes, setCampagnes] = useState([])
   const [loading, setLoading] = useState(true)
-  const [selectedDelegate, setSelectedDelegate] = useState('tous')
-  const [selectedMois, setSelectedMois] = useState(new Date().toISOString().slice(0, 7))
-  const [generating, setGenerating] = useState(false)
+  const [exporting, setExporting] = useState(false)
+  const [filters, setFilters] = useState({
+    delegate_id: 'tous',
+    campaign_id: 'tous',
+    month: 'tous',
+    year: new Date().getFullYear(),
+    statut: 'tous',
+    confidence: 'tous'
+  })
 
-  useEffect(() => { fetchData() }, [])
+  const MONTHS = ['Jan', 'Fév', 'Mar', 'Avr', 'Mai', 'Jun', 'Jul', 'Aoû', 'Sep', 'Oct', 'Nov', 'Déc']
 
-  const fetchData = async () => {
-    const { data: d } = await supabase
-      .from('delegates')
-      .select('*')
-      .eq('agence_id', profile.agence_id)
-      .order('nom')
-    const { data: v } = await supabase
-      .from('visites')
-      .select('*, delegates(*), medecins(*)')
-      .eq('agence_id', profile.agence_id)
-      .order('created_at', { ascending: false })
-    setDelegates(d || [])
+  useEffect(() => { fetchAll() }, [])
+
+  const fetchAll = async () => {
+    const [{ data: v }, { data: d }, { data: c }] = await Promise.all([
+      supabase.from('visites')
+        .select('*, delegates(nom, prenom), healthcare_professionals(nom, prenom, potential, specialite), establishments(nom, type), campaigns(nom)')
+        .eq('agence_id', profile.agence_id)
+        .order('created_at', { ascending: false }),
+      supabase.from('delegates').select('*').eq('agence_id', profile.agence_id).order('nom'),
+      supabase.from('campaigns').select('*').eq('agence_id', profile.agence_id).order('nom')
+    ])
     setVisites(v || [])
+    setDelegates(d || [])
+    setCampagnes(c || [])
     setLoading(false)
   }
 
-  const getVisitesFiltrees = () => {
-    return visites.filter(v => {
-      const matchDelegate = selectedDelegate === 'tous' || v.delegate_id === selectedDelegate
-      const matchMois = v.created_at?.slice(0, 7) === selectedMois
-      return matchDelegate && matchMois
-    })
-  }
+  const set = (k, v) => setFilters(f => ({ ...f, [k]: v }))
 
-  const exportExcel = () => {
-    setGenerating(true)
-    const data = getVisitesFiltrees()
+  const filtered = visites.filter(v => {
+    const matchDelegate = filters.delegate_id === 'tous' || v.delegate_id === filters.delegate_id
+    const matchCampaign = filters.campaign_id === 'tous' || v.campaign_id === filters.campaign_id
+    const matchMonth = filters.month === 'tous' || new Date(v.created_at).getMonth() + 1 === parseInt(filters.month)
+    const matchYear = !filters.year || new Date(v.created_at).getFullYear() === parseInt(filters.year)
+    const matchStatut = filters.statut === 'tous' || v.statut === filters.statut
+    const matchConfidence = filters.confidence === 'tous' || v.confidence_status === filters.confidence
+    return matchDelegate && matchCampaign && matchMonth && matchYear && matchStatut && matchConfidence
+  })
 
-    if (data.length === 0) {
-      alert('Aucune visite pour cette sélection')
-      setGenerating(false)
-      return
-    }
+  const exportExcel = async () => {
+    setExporting(true)
 
-    const rows = data.map(v => ({
+    // Onglet 1 — Visites détaillées
+    const visitesData = filtered.map(v => ({
       'Date': v.created_at?.slice(0, 10),
-      'Heure': v.created_at?.slice(11, 16),
       'Délégué': `${v.delegates?.prenom || ''} ${v.delegates?.nom || ''}`.trim(),
-      'Zone': v.delegates?.zone || '',
-      'Type de lieu': v.type_lieu || '',
-      'Nom contact': v.nom_contact || '',
-      'Titre / Fonction': v.titre_contact || '',
-      'Téléphone contact': v.telephone_contact || '',
-      'Produits présentés': v.produit || '',
-      'Statut': v.statut || '',
-      'Note': v.note || '',
-      'Latitude': v.latitude || '',
-      'Longitude': v.longitude || '',
-      'Visite planifiée': v.date_prevue ? new Date(v.date_prevue).toLocaleString('fr-FR') : '',
+      'Contact': v.healthcare_professionals
+        ? `${v.healthcare_professionals.prenom} ${v.healthcare_professionals.nom}`
+        : v.nom_contact || '—',
+      'Spécialité': v.healthcare_professionals?.specialite || v.titre_contact || '—',
+      'Potentiel': v.healthcare_professionals?.potential || '—',
+      'Établissement': v.establishments?.nom || v.type_lieu || '—',
+      'Type établissement': v.establishments?.type || '—',
+      'Campagne': v.campaigns?.nom || '—',
+      'Produits présentés': v.produit || '—',
+      'Statut': v.statut || '—',
+      'Type visite': v.visit_type || 'immediate',
+      'Score confiance': v.confidence_score ?? '—',
+      'Statut confiance': v.confidence_status === 'validated' ? '✅ Validée' :
+        v.confidence_status === 'to_check' ? '⚠️ À contrôler' :
+        v.confidence_status === 'suspicious' ? '🚨 Suspecte' : '—',
+      'GPS conforme': v.geofence_compliant === true ? 'Oui' : v.geofence_compliant === false ? 'Non' : '—',
+      'Distance établissement (m)': v.distance_to_establishment ?? '—',
+      'Durée (min)': v.duration_minutes ?? '—',
+      'Note': v.note || '—',
+      'Latitude': v.latitude || v.gps_start_lat || '—',
+      'Longitude': v.longitude || v.gps_start_lng || '—',
     }))
 
-    const ws = XLSX.utils.json_to_sheet(rows)
+    // Onglet 2 — Statistiques par délégué
+    const statsDelegate = delegates.map(d => {
+      const dvs = filtered.filter(v => v.delegate_id === d.id)
+      const realisees = dvs.filter(v => v.statut === 'Réalisée')
+      const validees = dvs.filter(v => v.confidence_status === 'validated')
+      const suspectes = dvs.filter(v => v.confidence_status === 'suspicious')
+      const avgScore = dvs.filter(v => v.confidence_score).length > 0
+        ? Math.round(dvs.filter(v => v.confidence_score).reduce((s, v) => s + v.confidence_score, 0) / dvs.filter(v => v.confidence_score).length)
+        : '—'
+      return {
+        'Délégué': `${d.prenom} ${d.nom}`,
+        'Total visites': dvs.length,
+        'Réalisées': realisees.length,
+        'Taux réalisation (%)': dvs.length > 0 ? Math.round((realisees.length / dvs.length) * 100) : 0,
+        'Validées (anti-triche)': validees.length,
+        'Suspectes': suspectes.length,
+        'Score confiance moyen': avgScore,
+      }
+    })
 
-    // Style des colonnes
-    const colWidths = [
-      { wch: 12 }, { wch: 8 }, { wch: 20 }, { wch: 15 },
-      { wch: 15 }, { wch: 20 }, { wch: 20 }, { wch: 15 },
-      { wch: 25 }, { wch: 12 }, { wch: 30 }, { wch: 12 }, { wch: 12 }, { wch: 20 }
-    ]
-    ws['!cols'] = colWidths
+    // Onglet 3 — Statistiques par campagne
+    const statsCampaign = campagnes.map(c => {
+      const cvs = filtered.filter(v => v.campaign_id === c.id)
+      const realisees = cvs.filter(v => v.statut === 'Réalisée')
+      return {
+        'Campagne': c.nom,
+        'Statut': c.statut,
+        'Total visites': cvs.length,
+        'Réalisées': realisees.length,
+        'Taux réalisation (%)': cvs.length > 0 ? Math.round((realisees.length / cvs.length) * 100) : 0,
+        'Objectif': c.visits_objective || '—',
+        'Progression (%)': c.visits_objective
+          ? Math.round((realisees.length / c.visits_objective) * 100)
+          : '—',
+      }
+    })
+
+    // Onglet 4 — Anti-triche
+    const antiTriche = filtered.filter(v => v.confidence_status).map(v => ({
+      'Date': v.created_at?.slice(0, 10),
+      'Délégué': `${v.delegates?.prenom || ''} ${v.delegates?.nom || ''}`.trim(),
+      'Contact': v.nom_contact || '—',
+      'Score': v.confidence_score ?? '—',
+      'Statut': v.confidence_status === 'validated' ? 'Validée' :
+        v.confidence_status === 'to_check' ? 'À contrôler' : 'Suspecte',
+      'GPS conforme': v.geofence_compliant === true ? 'Oui' : v.geofence_compliant === false ? 'Non' : '—',
+      'Distance (m)': v.distance_to_establishment ?? '—',
+      'Durée (min)': v.duration_minutes ?? '—',
+    }))
 
     const wb = XLSX.utils.book_new()
-    XLSX.utils.book_append_sheet(wb, ws, 'Visites')
 
-    // Onglet statistiques
-    const delegueNom = selectedDelegate === 'tous'
-      ? 'Tous les délégués'
-      : delegates.find(d => d.id === selectedDelegate)?.nom || ''
+    const ws1 = XLSX.utils.json_to_sheet(visitesData)
+    XLSX.utils.book_append_sheet(wb, ws1, 'Visites détaillées')
 
-    const statsRows = delegates
-      .filter(d => selectedDelegate === 'tous' || d.id === selectedDelegate)
-      .map(d => {
-        const dvs = data.filter(v => v.delegate_id === d.id)
-        const realisees = dvs.filter(v => v.statut === 'Réalisée').length
-        return {
-          'Délégué': `${d.prenom} ${d.nom}`,
-          'Zone': d.zone || '',
-          'Total visites': dvs.length,
-          'Visites réalisées': realisees,
-          'Non abouties': dvs.filter(v => v.statut === 'Non aboutie').length,
-          'Taux de réussite': dvs.length > 0 ? `${Math.round((realisees / dvs.length) * 100)}%` : '0%',
-          'Médecins/contacts visités': new Set(dvs.map(v => v.nom_contact)).size,
-        }
-      })
+    const ws2 = XLSX.utils.json_to_sheet(statsDelegate)
+    XLSX.utils.book_append_sheet(wb, ws2, 'Stats délégués')
 
-    const wsStats = XLSX.utils.json_to_sheet(statsRows)
-    wsStats['!cols'] = [{ wch: 20 }, { wch: 15 }, { wch: 14 }, { wch: 16 }, { wch: 14 }, { wch: 15 }, { wch: 22 }]
-    XLSX.utils.book_append_sheet(wb, wsStats, 'Statistiques')
+    const ws3 = XLSX.utils.json_to_sheet(statsCampaign)
+    XLSX.utils.book_append_sheet(wb, ws3, 'Stats campagnes')
 
-    const moisLabel = new Date(selectedMois + '-01').toLocaleString('fr-FR', { month: 'long', year: 'numeric' })
-    const fileName = `MedTrack_${delegueNom}_${moisLabel}.xlsx`.replace(/ /g, '_')
+    const ws4 = XLSX.utils.json_to_sheet(antiTriche)
+    XLSX.utils.book_append_sheet(wb, ws4, 'Anti-triche')
 
     const wbout = XLSX.write(wb, { bookType: 'xlsx', type: 'array' })
+    const fileName = `MedTrack_Export_${new Date().toISOString().slice(0, 10)}.xlsx`
     saveAs(new Blob([wbout], { type: 'application/octet-stream' }), fileName)
-    setGenerating(false)
+    setExporting(false)
   }
-
-  const visitesFiltrees = getVisitesFiltrees()
-  const realisees = visitesFiltrees.filter(v => v.statut === 'Réalisée').length
-  const taux = visitesFiltrees.length > 0 ? Math.round((realisees / visitesFiltrees.length) * 100) : 0
-
-  const MOIS = Array.from({ length: 12 }, (_, i) => {
-    const d = new Date()
-    d.setMonth(d.getMonth() - i)
-    return d.toISOString().slice(0, 7)
-  })
 
   if (loading) return (
     <div className="min-h-screen bg-slate-100 flex items-center justify-center">
@@ -126,133 +155,166 @@ export default function Rapports({ onBack, profile }) {
     </div>
   )
 
+  const realisees = filtered.filter(v => v.statut === 'Réalisée')
+  const validees = filtered.filter(v => v.confidence_status === 'validated')
+  const suspectes = filtered.filter(v => v.confidence_status === 'suspicious')
+  const aControler = filtered.filter(v => v.confidence_status === 'to_check')
+
   return (
     <div className="min-h-screen bg-slate-100">
-      <div className="bg-blue-950 px-6 py-4 flex items-center gap-4">
-        <button onClick={onBack} className="text-white text-xl">←</button>
-        <h1 className="text-white font-black">Rapports</h1>
+      <div className="bg-blue-950 px-6 py-4 flex items-center justify-between">
+        <div className="flex items-center gap-4">
+          <button onClick={onBack} className="text-white text-xl">←</button>
+          <div>
+            <h1 className="text-white font-black text-lg">Rapports & Export</h1>
+            <p className="text-teal-400 text-xs font-bold uppercase tracking-wider">
+              {filtered.length} visite{filtered.length > 1 ? 's' : ''}
+            </p>
+          </div>
+        </div>
+        <button onClick={exportExcel} disabled={exporting || filtered.length === 0}
+          className="bg-teal-400 text-blue-950 px-4 py-2 rounded-xl font-black text-xs">
+          {exporting ? '...' : '📥 Excel'}
+        </button>
       </div>
 
-      <div className="p-6 flex flex-col gap-4">
+      <div className="p-6 flex flex-col gap-4 pb-10">
 
         {/* Filtres */}
-        <div className="bg-white rounded-2xl p-4 flex flex-col gap-4">
+        <div className="bg-white rounded-2xl p-4 flex flex-col gap-3">
           <p className="text-xs font-black text-blue-950 uppercase tracking-wider">Filtres</p>
 
-          <div>
-            <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Mois</label>
-            <select
-              value={selectedMois}
-              onChange={(e) => setSelectedMois(e.target.value)}
-              className="w-full mt-1 p-3 rounded-xl border border-slate-200 bg-slate-50 text-sm"
-            >
-              {MOIS.map(m => (
-                <option key={m} value={m}>
-                  {new Date(m + '-01').toLocaleString('fr-FR', { month: 'long', year: 'numeric' })}
-                </option>
-              ))}
+          <select value={filters.delegate_id} onChange={e => set('delegate_id', e.target.value)}
+            className="w-full p-3 rounded-xl border border-slate-200 bg-slate-50 text-sm">
+            <option value="tous">Tous les délégués</option>
+            {delegates.map(d => <option key={d.id} value={d.id}>{d.prenom} {d.nom}</option>)}
+          </select>
+
+          <select value={filters.campaign_id} onChange={e => set('campaign_id', e.target.value)}
+            className="w-full p-3 rounded-xl border border-slate-200 bg-slate-50 text-sm">
+            <option value="tous">Toutes les campagnes</option>
+            {campagnes.map(c => <option key={c.id} value={c.id}>{c.nom}</option>)}
+          </select>
+
+          <div className="grid grid-cols-2 gap-3">
+            <select value={filters.month} onChange={e => set('month', e.target.value)}
+              className="w-full p-3 rounded-xl border border-slate-200 bg-slate-50 text-sm">
+              <option value="tous">Tous les mois</option>
+              {MONTHS.map((m, i) => <option key={i + 1} value={i + 1}>{m}</option>)}
             </select>
+            <input type="number" value={filters.year} onChange={e => set('year', e.target.value)}
+              className="w-full p-3 rounded-xl border border-slate-200 bg-slate-50 text-sm"
+              placeholder="Année" />
           </div>
 
-          <div>
-            <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Délégué</label>
-            <select
-              value={selectedDelegate}
-              onChange={(e) => setSelectedDelegate(e.target.value)}
-              className="w-full mt-1 p-3 rounded-xl border border-slate-200 bg-slate-50 text-sm"
-            >
-              <option value="tous">Tous les délégués</option>
-              {delegates.map(d => (
-                <option key={d.id} value={d.id}>{d.prenom} {d.nom}</option>
-              ))}
+          <div className="grid grid-cols-2 gap-3">
+            <select value={filters.statut} onChange={e => set('statut', e.target.value)}
+              className="w-full p-3 rounded-xl border border-slate-200 bg-slate-50 text-sm">
+              <option value="tous">Tous les statuts</option>
+              <option value="Réalisée">Réalisée</option>
+              <option value="Non aboutie">Non aboutie</option>
+              <option value="Planifiée">Planifiée</option>
+            </select>
+            <select value={filters.confidence} onChange={e => set('confidence', e.target.value)}
+              className="w-full p-3 rounded-xl border border-slate-200 bg-slate-50 text-sm">
+              <option value="tous">Tous scores</option>
+              <option value="validated">✅ Validée</option>
+              <option value="to_check">⚠️ À contrôler</option>
+              <option value="suspicious">🚨 Suspecte</option>
             </select>
           </div>
         </div>
 
-        {/* Stats du rapport */}
+        {/* KPIs */}
         <div className="grid grid-cols-2 gap-3">
           <div className="bg-white rounded-2xl p-4 border-l-4 border-teal-400">
-            <p className="text-2xl font-black text-blue-950">{visitesFiltrees.length}</p>
-            <p className="text-xs text-slate-500 font-bold uppercase tracking-wider mt-1">Visites</p>
+            <p className="text-2xl font-black text-blue-950">{filtered.length}</p>
+            <p className="text-xs text-slate-500 font-bold uppercase tracking-wider mt-1">Total</p>
           </div>
-          <div className="bg-white rounded-2xl p-4 border-l-4 border-amber-400">
-            <p className="text-2xl font-black text-blue-950">{taux}%</p>
-            <p className="text-xs text-slate-500 font-bold uppercase tracking-wider mt-1">Taux réussite</p>
-          </div>
-          <div className="bg-white rounded-2xl p-4 border-l-4 border-purple-400">
-            <p className="text-2xl font-black text-blue-950">{realisees}</p>
+          <div className="bg-white rounded-2xl p-4 border-l-4 border-blue-400">
+            <p className="text-2xl font-black text-blue-950">{realisees.length}</p>
             <p className="text-xs text-slate-500 font-bold uppercase tracking-wider mt-1">Réalisées</p>
           </div>
-          <div className="bg-white rounded-2xl p-4 border-l-4 border-rose-400">
-            <p className="text-2xl font-black text-blue-950">{visitesFiltrees.length - realisees}</p>
-            <p className="text-xs text-slate-500 font-bold uppercase tracking-wider mt-1">Non abouties</p>
+          <div className="bg-white rounded-2xl p-4 border-l-4 border-green-400">
+            <p className="text-2xl font-black text-blue-950">{validees.length}</p>
+            <p className="text-xs text-slate-500 font-bold uppercase tracking-wider mt-1">✅ Validées</p>
+          </div>
+          <div className="bg-white rounded-2xl p-4 border-l-4 border-amber-400">
+            <p className="text-2xl font-black text-blue-950">{aControler.length}</p>
+            <p className="text-xs text-slate-500 font-bold uppercase tracking-wider mt-1">⚠️ À contrôler</p>
+          </div>
+          <div className="bg-white rounded-2xl p-4 border-l-4 border-rose-400 col-span-2">
+            <p className="text-2xl font-black text-blue-950">{suspectes.length}</p>
+            <p className="text-xs text-slate-500 font-bold uppercase tracking-wider mt-1">🚨 Suspectes</p>
           </div>
         </div>
 
-        {/* Résumé par délégué */}
-        {selectedDelegate === 'tous' && (
-          <div className="bg-white rounded-2xl p-4">
-            <p className="text-xs font-black text-blue-950 uppercase tracking-wider mb-3">Résumé par délégué</p>
-            {delegates.map(d => {
-              const dvs = visitesFiltrees.filter(v => v.delegate_id === d.id)
-              const dr = dvs.filter(v => v.statut === 'Réalisée').length
-              const pct = dvs.length > 0 ? Math.round((dr / dvs.length) * 100) : 0
-              return (
-                <div key={d.id} className="mb-4">
-                  <div className="flex justify-between items-center mb-1">
-                    <span className="text-sm font-bold text-blue-950">{d.prenom} {d.nom}</span>
-                    <span className="text-xs text-slate-400">{dvs.length} visites · {pct}%</span>
-                  </div>
-                  <div className="bg-slate-100 rounded-full h-2">
-                    <div className="bg-teal-400 rounded-full h-2" style={{ width: `${pct}%` }} />
-                  </div>
-                </div>
-              )
-            })}
-          </div>
-        )}
+        {/* Info export */}
+        <div className="bg-blue-50 border border-blue-200 rounded-2xl p-4">
+          <p className="text-xs text-blue-700 font-black mb-1">📊 L'export Excel contient 4 onglets :</p>
+          <p className="text-xs text-blue-600">1. Visites détaillées (avec campagne, cibles, GPS, score)</p>
+          <p className="text-xs text-blue-600">2. Statistiques par délégué</p>
+          <p className="text-xs text-blue-600">3. Statistiques par campagne</p>
+          <p className="text-xs text-blue-600">4. Rapport anti-triche</p>
+        </div>
 
-        {/* Export */}
-        <button
-          onClick={exportExcel}
-          disabled={generating || visitesFiltrees.length === 0}
-          className="w-full bg-teal-400 text-blue-950 font-black py-4 rounded-2xl text-sm disabled:opacity-50"
-        >
-          {generating ? 'Génération...' : `📥 Exporter Excel (${visitesFiltrees.length} visites)`}
-        </button>
-
-        {/* Aperçu des visites */}
-        <div className="bg-white rounded-2xl p-4">
-          <p className="text-xs font-black text-blue-950 uppercase tracking-wider mb-3">
-            Aperçu — {visitesFiltrees.length} visite{visitesFiltrees.length > 1 ? 's' : ''}
-          </p>
-          {visitesFiltrees.length === 0 ? (
-            <p className="text-slate-400 text-sm text-center py-4">Aucune visite pour cette période</p>
-          ) : (
-            visitesFiltrees.slice(0, 10).map(v => (
-              <div key={v.id} className="py-3 border-b border-slate-100 last:border-0">
-                <div className="flex justify-between items-start">
-                  <div>
-                    <p className="font-bold text-blue-950 text-sm">{v.nom_contact || '—'}</p>
-                    <p className="text-xs text-slate-400">{v.delegates?.prenom} {v.delegates?.nom} · {v.type_lieu}</p>
-                    {v.produit && <p className="text-xs text-teal-600 font-bold mt-0.5">💊 {v.produit}</p>}
-                  </div>
-                  <div className="text-right">
-                    <span className={`text-xs font-bold px-2 py-1 rounded-full ${v.statut === 'Réalisée' ? 'bg-teal-100 text-teal-600' : 'bg-rose-100 text-rose-500'}`}>
-                      {v.statut}
-                    </span>
-                    <p className="text-xs text-slate-300 mt-1">{v.created_at?.slice(0, 10)}</p>
-                  </div>
+        {/* Liste visites */}
+        <p className="text-xs font-black text-slate-400 uppercase tracking-wider">
+          Aperçu — {filtered.length} visite{filtered.length > 1 ? 's' : ''}
+        </p>
+        {filtered.slice(0, 20).map(v => (
+          <div key={v.id} className={`bg-white rounded-2xl p-4 border-l-4 ${
+            v.confidence_status === 'suspicious' ? 'border-rose-400' :
+            v.confidence_status === 'to_check' ? 'border-amber-400' :
+            v.confidence_status === 'validated' ? 'border-green-400' : 'border-slate-200'
+          }`}>
+            <div className="flex items-start justify-between gap-3">
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2 flex-wrap mb-1">
+                  <p className="font-black text-blue-950 text-sm">
+                    {v.healthcare_professionals
+                      ? `${v.healthcare_professionals.prenom} ${v.healthcare_professionals.nom}`
+                      : v.nom_contact || '—'}
+                  </p>
+                  {v.healthcare_professionals?.potential && (
+                    <span className={`text-xs font-bold px-1.5 py-0.5 rounded-full ${
+                      v.healthcare_professionals.potential === 'A' ? 'bg-rose-100 text-rose-600' :
+                      v.healthcare_professionals.potential === 'B' ? 'bg-amber-100 text-amber-600' :
+                      'bg-slate-100 text-slate-500'
+                    }`}>{v.healthcare_professionals.potential}</span>
+                  )}
                 </div>
+                <p className="text-xs text-slate-400">
+                  👤 {v.delegates?.prenom} {v.delegates?.nom}
+                </p>
+                {v.campaigns && <p className="text-xs text-slate-400">🎯 {v.campaigns.nom}</p>}
+                {v.establishments && <p className="text-xs text-slate-400">🏥 {v.establishments.nom}</p>}
+                <p className="text-xs text-slate-300 mt-1">{v.created_at?.slice(0, 10)}</p>
               </div>
-            ))
-          )}
-          {visitesFiltrees.length > 10 && (
-            <p className="text-xs text-slate-400 text-center mt-3">
-              + {visitesFiltrees.length - 10} autres visites dans l'export Excel
-            </p>
-          )}
-        </div>
+              <div className="flex flex-col items-end gap-1 flex-shrink-0">
+                <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${
+                  v.statut === 'Réalisée' ? 'bg-teal-100 text-teal-600' :
+                  v.statut === 'Planifiée' ? 'bg-amber-100 text-amber-600' :
+                  'bg-rose-100 text-rose-500'
+                }`}>{v.statut}</span>
+                {v.confidence_score !== null && v.confidence_score !== undefined && (
+                  <span className={`text-xs font-black px-2 py-0.5 rounded-full ${
+                    v.confidence_status === 'validated' ? 'bg-green-100 text-green-600' :
+                    v.confidence_status === 'to_check' ? 'bg-amber-100 text-amber-600' :
+                    'bg-rose-100 text-rose-500'
+                  }`}>
+                    {v.confidence_score}pts
+                  </span>
+                )}
+              </div>
+            </div>
+          </div>
+        ))}
+        {filtered.length > 20 && (
+          <p className="text-xs text-slate-400 text-center">
+            +{filtered.length - 20} visites dans l'export Excel
+          </p>
+        )}
       </div>
     </div>
   )
