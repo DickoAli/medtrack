@@ -1,3 +1,5 @@
+import GestionObjectifs from './GestionObjectifs'
+import RapportCoaching from './RapportCoaching'
 import GestionVentes from './GestionVentes'
 import GestionContenu from './GestionContenu'
 import { useState, useEffect } from 'react'
@@ -82,6 +84,8 @@ export default function Dashboard({ session, profile, agence }) {
 
   // Pages
   const pages = {
+    objectifs: <GestionObjectifs profile={profile} onBack={() => setPage('dashboard')} />,
+    coaching: <RapportCoaching profile={profile} onBack={() => setPage('dashboard')} />,
     ventes: <GestionVentes profile={profile} onBack={() => setPage('dashboard')} />,
     contenu: <GestionContenu profile={profile} onBack={() => setPage('dashboard')} />,
     carte: <Carte profile={profile} onBack={() => setPage('dashboard')} />,
@@ -370,6 +374,14 @@ export default function Dashboard({ session, profile, agence }) {
             <button onClick={() => setPage('ventes')}
   className="w-full bg-green-700 text-white font-black py-4 rounded-2xl text-sm">
   💰 Ventes & Grossistes
+</button>
+<button onClick={() => setPage('coaching')}
+  className="w-full bg-pink-700 text-white font-black py-4 rounded-2xl text-sm">
+  🏆 Coaching délégués
+</button>
+<button onClick={() => setPage('objectifs')}
+  className="w-full bg-cyan-700 text-white font-black py-4 rounded-2xl text-sm">
+  🎯 Objectifs délégués
 </button>
             <button onClick={() => setPage('campagnes')} className="w-full bg-orange-600 text-white font-black py-4 rounded-2xl text-sm">🎯 Campagnes</button>
             <button onClick={() => setPage('professionnels')} className="w-full bg-indigo-700 text-white font-black py-4 rounded-2xl text-sm">👨‍⚕️ Professionnels de santé</button>

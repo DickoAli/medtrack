@@ -1,3 +1,4 @@
+import ProfilDelegue from './ProfilDelegue'
 import { useState, useEffect, useRef } from 'react'
 import { supabase } from '../supabase'
 import { saveVisiteLocally, getPendingVisites, deleteLocalVisite, countPendingVisites, isOnline } from '../offline'
@@ -27,6 +28,7 @@ export default function DelegueApp({ session, profile }) {
   })
   const [saving, setSaving] = useState(false)
   const [success, setSuccess] = useState(false)
+  const [showProfil, setShowProfil] = useState(false)
 
   const fetchData = async () => {
     const { data: s } = await supabase
@@ -253,7 +255,9 @@ setSupports(s || [])
     B: 'bg-amber-100 text-amber-600',
     C: 'bg-slate-100 text-slate-500'
   }
-
+if (showProfil) return (
+  <ProfilDelegue profile={profile} onBack={() => setShowProfil(false)} />
+)
   if (page === 'extranet') return <Extranet profile={profile} onBack={() => setPage('accueil')} />
 
   return (
