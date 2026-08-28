@@ -17,7 +17,7 @@ export default function GestionContenu({ onBack, profile }) {
     nom: '', type: 'pdf', laboratoire_id: '',
     produit_id: '', campaign_id: '',
     version: '1.0', is_published: false,
-    is_offline: true, file: null, file_url: ''
+    is_offline: true, file: null
   })
 
   const TYPES = ['pdf', 'image', 'video', 'presentation', 'document']
@@ -58,35 +58,28 @@ export default function GestionContenu({ onBack, profile }) {
     nom: '', type: 'pdf', laboratoire_id: '',
     produit_id: '', campaign_id: '',
     version: '1.0', is_published: false,
-    is_offline: true, file: null, file_url: ''
+    is_offline: true, file: null
   })
-
-  const handleUpload = async (file) => {
-    if (!file) return null
-    setUploading(true)
-    const ext = file.name.split('.').pop()
-    const fileName = `${profile.agence_id}/${Date.now()}_${file.name}`
-    const { error } = await supabase.storage.from('STATLABO').upload(fileName, file)
-    if (error) { alert('Erreur upload: ' + error.message); setUploading(false); return null }
-    const url = `${import.meta.env.VITE_SUPABASE_URL}/storage/v1/object/public/STATLABO/${fileName}`
-    setUploading(false)
-    return url
-  }
 
   const handleSave = async () => {
     if (!form.nom) { alert('Le nom est obligatoire'); return }
     if (!form.laboratoire_id) { alert('Sélectionnez un laboratoire'); return }
-    if (!form.file && !form.file_url) { alert('Uploadez un fichier'); return }
+    if (!form.file) { alert('Uploadez un fichier'); return }
     setSaving(true)
+    setUploading(true)
 
-    let file_url = form.file_url
-    let file_size = null
+    const fileName = `${profile.agence_id}/${Date.now()}_${form.file.name}`
+    const { error: uploadError } = await supabase.storage.from('STATLABO').upload(fileName, form.file)
 
-    if (form.file) {
-      file_url = await handleUpload(form.file)
-      file_size = form.file.size
-      if (!file_url) { setSaving(false); return }
+    if (uploadError) {
+      alert('Erreur upload: ' + uploadError.message)
+      setSaving(false)
+      setUploading(false)
+      return
     }
+
+    const file_url = `${import.meta.env.VITE_SUPABASE_URL}/storage/v1/object/public/STATLABO/${fileName}`
+    setUploading(false)
 
     await supabase.from('content_assets').insert({
       agence_id: profile.agence_id,
@@ -96,7 +89,7 @@ export default function GestionContenu({ onBack, profile }) {
       nom: form.nom,
       type: form.type,
       file_url,
-      file_size,
+      file_size: form.file.size,
       version: form.version,
       is_published: form.is_published,
       is_offline: form.is_offline,
@@ -140,7 +133,6 @@ export default function GestionContenu({ onBack, profile }) {
 
   return (
     <div className="min-h-screen bg-slate-100">
-      {/* Header */}
       <div className="bg-blue-950 px-6 py-4 flex items-center justify-between">
         <div className="flex items-center gap-4">
           <button onClick={onBack} className="text-white text-xl">←</button>
@@ -159,7 +151,6 @@ export default function GestionContenu({ onBack, profile }) {
         </button>
       </div>
 
-      {/* Filtres */}
       <div className="px-6 pt-4 flex flex-col gap-3">
         <select value={filterLabo} onChange={e => setFilterLabo(e.target.value)}
           className="w-full p-3 rounded-xl border border-slate-200 bg-white text-sm">
@@ -184,7 +175,6 @@ export default function GestionContenu({ onBack, profile }) {
         </div>
       )}
 
-      {/* Formulaire */}
       {showForm && (
         <div className="fixed inset-0 bg-blue-950/60 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-2xl p-6 w-full max-w-sm shadow-2xl max-h-screen overflow-y-auto">
@@ -259,7 +249,7 @@ export default function GestionContenu({ onBack, profile }) {
                 )}
               </div>
 
-              <div className="flex gap-4">
+              <div className="flex flex-col gap-2">
                 <label className="flex items-center gap-2 cursor-pointer">
                   <input type="checkbox" checked={form.is_published}
                     onChange={e => set('is_published', e.target.checked)}
@@ -289,7 +279,6 @@ export default function GestionContenu({ onBack, profile }) {
         </div>
       )}
 
-      {/* Liste */}
       <div className="p-6 flex flex-col gap-3 pb-10">
         <p className="text-xs text-slate-400 font-bold uppercase tracking-wider">
           {filtered.length} support{filtered.length > 1 ? 's' : ''}
@@ -349,3 +338,8 @@ export default function GestionContenu({ onBack, profile }) {
               </div>
             </div>
           ))
+        )}
+      </div>
+    </div>
+  )
+}
