@@ -1,3 +1,4 @@
+import GestionContenu from './GestionContenu'
 import { useState, useEffect } from 'react'
 import { supabase } from '../supabase'
 import Carte from './Carte'
@@ -80,6 +81,7 @@ export default function Dashboard({ session, profile, agence }) {
 
   // Pages
   const pages = {
+    contenu: <GestionContenu profile={profile} onBack={() => setPage('dashboard')} />,
     carte: <Carte profile={profile} onBack={() => setPage('dashboard')} />,
     statistiques: <Statistiques profile={profile} onBack={() => setPage('dashboard')} />,
     rapports: <Rapports profile={profile} onBack={() => setPage('dashboard')} />,
@@ -353,6 +355,10 @@ export default function Dashboard({ session, profile, agence }) {
             <button onClick={() => setPage('statistiques')} className="w-full bg-purple-600 text-white font-black py-4 rounded-2xl text-sm">📊 Statistiques</button>
             <button onClick={() => setPage('stats-avancees')} className="w-full bg-indigo-600 text-white font-black py-4 rounded-2xl text-sm">📈 Statistiques avancées</button>
             <button onClick={() => setPage('rapports')} className="w-full bg-green-600 text-white font-black py-4 rounded-2xl text-sm">📥 Rapports & Export</button>
+            <button onClick={() => setPage('contenu')}
+  className="w-full bg-pink-600 text-white font-black py-4 rounded-2xl text-sm">
+  📚 Bibliothèque E-detailing
+</button>
           </div>
         </div>
 
