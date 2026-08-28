@@ -207,6 +207,18 @@ export default function Dashboard({ session, profile, agence }) {
               <p className="text-2xl font-black text-blue-950">{plans.length}</p>
               <p className="text-xs text-slate-500 font-bold uppercase tracking-wider mt-1">Visites planifiées</p>
             </div>
+            <div className="bg-white rounded-2xl p-4 border-l-4 border-rose-400">
+  <p className="text-2xl font-black text-blue-950">
+    {visites.filter(v => v.confidence_status === 'suspicious').length}
+  </p>
+  <p className="text-xs text-slate-500 font-bold uppercase tracking-wider mt-1">Suspectes</p>
+</div>
+<div className="bg-white rounded-2xl p-4 border-l-4 border-amber-400">
+  <p className="text-2xl font-black text-blue-950">
+    {visites.filter(v => v.confidence_status === 'to_check').length}
+  </p>
+  <p className="text-xs text-slate-500 font-bold uppercase tracking-wider mt-1">À contrôler</p>
+</div>
           </div>
         </div>
 
@@ -246,7 +258,59 @@ export default function Dashboard({ session, profile, agence }) {
             </div>
           </div>
         )}
+{/* Visites suspectes */}
+{visites.filter(v => v.confidence_status === 'suspicious').length > 0 && (
+  <div>
+    <p className="text-xs font-black text-rose-500 uppercase tracking-wider mb-3">
+      🚨 Visites suspectes ({visites.filter(v => v.confidence_status === 'suspicious').length})
+    </p>
+    <div className="flex flex-col gap-2">
+      {visites.filter(v => v.confidence_status === 'suspicious').slice(0, 5).map(v => (
+        <div key={v.id} className="bg-white rounded-2xl p-4 border-l-4 border-rose-400">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="font-black text-blue-950 text-sm">{v.nom_contact || '—'}</p>
+              <p className="text-xs text-slate-400">
+                {v.delegates?.prenom} {v.delegates?.nom} · {v.created_at?.slice(0, 10)}
+              </p>
+            </div>
+            <div className="text-right">
+              <p className="font-black text-rose-500 text-lg">{v.confidence_score}</p>
+              <p className="text-xs text-slate-400">score</p>
+            </div>
+          </div>
+        </div>
+      ))}
+    </div>
+  </div>
+)}
 
+{/* Visites à contrôler */}
+{visites.filter(v => v.confidence_status === 'to_check').length > 0 && (
+  <div>
+    <p className="text-xs font-black text-amber-500 uppercase tracking-wider mb-3">
+      ⚠️ À contrôler ({visites.filter(v => v.confidence_status === 'to_check').length})
+    </p>
+    <div className="flex flex-col gap-2">
+      {visites.filter(v => v.confidence_status === 'to_check').slice(0, 3).map(v => (
+        <div key={v.id} className="bg-white rounded-2xl p-4 border-l-4 border-amber-400">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="font-black text-blue-950 text-sm">{v.nom_contact || '—'}</p>
+              <p className="text-xs text-slate-400">
+                {v.delegates?.prenom} {v.delegates?.nom} · {v.created_at?.slice(0, 10)}
+              </p>
+            </div>
+            <div className="text-right">
+              <p className="font-black text-amber-500 text-lg">{v.confidence_score}</p>
+              <p className="text-xs text-slate-400">score</p>
+            </div>
+          </div>
+        </div>
+      ))}
+    </div>
+  </div>
+)}
         {/* Performance délégués */}
         <div>
           <p className="text-xs font-black text-slate-400 uppercase tracking-wider mb-3">Performance délégués</p>

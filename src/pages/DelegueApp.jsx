@@ -77,6 +77,9 @@ export default function DelegueApp({ session, profile }) {
     for (const v of pending) {
       const { local_id, synced: _, produits_ids, ...visite } = v
       const { data, error } = await supabase.from('visites').insert(visite).select().single()
+      if (saved) {
+  await supabase.rpc('calculate_confidence_score', { visit_id: saved.id })
+}
       if (!error && data) {
         if (produits_ids?.length > 0) {
           await supabase.from('visite_produits').insert(
