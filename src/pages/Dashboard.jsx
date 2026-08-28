@@ -1,3 +1,6 @@
+import GestionAppareils from './GestionAppareils'
+import JournalAudit from './JournalAudit'
+import CorrelationVentes from './CorrelationVentes'
 import GestionObjectifs from './GestionObjectifs'
 import RapportCoaching from './RapportCoaching'
 import GestionVentes from './GestionVentes'
@@ -84,6 +87,9 @@ export default function Dashboard({ session, profile, agence }) {
 
   // Pages
   const pages = {
+    appareils: <GestionAppareils profile={profile} onBack={() => setPage('dashboard')} />,
+    audit: <JournalAudit profile={profile} onBack={() => setPage('dashboard')} />,
+    correlation: <CorrelationVentes profile={profile} onBack={() => setPage('dashboard')} />,
     objectifs: <GestionObjectifs profile={profile} onBack={() => setPage('dashboard')} />,
     coaching: <RapportCoaching profile={profile} onBack={() => setPage('dashboard')} />,
     ventes: <GestionVentes profile={profile} onBack={() => setPage('dashboard')} />,
@@ -382,6 +388,14 @@ export default function Dashboard({ session, profile, agence }) {
 <button onClick={() => setPage('objectifs')}
   className="w-full bg-cyan-700 text-white font-black py-4 rounded-2xl text-sm">
   🎯 Objectifs délégués
+</button>
+<button onClick={() => setPage('audit')}
+  className="w-full bg-slate-700 text-white font-black py-4 rounded-2xl text-sm">
+  📋 Journal d'audit
+</button>
+<button onClick={() => setPage('appareils')}
+  className="w-full bg-gray-700 text-white font-black py-4 rounded-2xl text-sm">
+  📱 Appareils autorisés
 </button>
             <button onClick={() => setPage('campagnes')} className="w-full bg-orange-600 text-white font-black py-4 rounded-2xl text-sm">🎯 Campagnes</button>
             <button onClick={() => setPage('professionnels')} className="w-full bg-indigo-700 text-white font-black py-4 rounded-2xl text-sm">👨‍⚕️ Professionnels de santé</button>

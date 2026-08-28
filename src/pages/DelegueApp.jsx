@@ -195,6 +195,18 @@ setSupports(s || [])
     }
 
     const { data: saved } = await supabase.from('visites').insert(visiteData).select().single()
+    if (saved) {
+  await supabase.rpc('calculate_confidence_score', { visit_id: saved.id })
+  // Log audit
+  await supabase.from('audit_logs').insert({
+    agence_id: profile.agence_id,
+    user_id: profile.id,
+    action: 'visit_created',
+    table_name: 'visites',
+    record_id: saved.id,
+    new_values: { delegate_id: saved.delegate_id, statut: saved.statut, nom_contact: saved.nom_contact }
+  })
+}
 
     if (saved && form.produits_ids.length > 0) {
       await supabase.from('visite_produits').insert(

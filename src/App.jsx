@@ -113,6 +113,7 @@ export default function App() {
   }
 
   if (profile.role_global === 'superadmin') return <SuperAdmin session={session} profile={profile} />
+  if (profile.role === 'client_labo') return <DashboardLabo session={session} profile={profile} />
   if (profile.role === 'manager') return <Dashboard session={session} profile={profile} agence={agence} />
   if (profile.role === 'delegue') return <DelegueApp session={session} profile={profile} />
 
