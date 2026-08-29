@@ -364,6 +364,10 @@ export default function Dashboard({ session, profile, agence }) {
         <div>
           <p className="text-xs font-black text-slate-400 uppercase tracking-wider mb-3">Analyse</p>
           <div className="flex flex-col gap-3">
+            <button onClick={() => setPage('correlation')}
+  className="w-full bg-indigo-700 text-white font-black py-4 rounded-2xl text-sm">
+  📈 Corrélation visites/ventes
+</button>
             <button onClick={() => setPage('statistiques')} className="w-full bg-purple-600 text-white font-black py-4 rounded-2xl text-sm">📊 Statistiques</button>
             <button onClick={() => setPage('stats-avancees')} className="w-full bg-indigo-600 text-white font-black py-4 rounded-2xl text-sm">📈 Statistiques avancées</button>
             <button onClick={() => setPage('rapports')} className="w-full bg-green-600 text-white font-black py-4 rounded-2xl text-sm">📥 Rapports & Export</button>
@@ -395,10 +399,7 @@ export default function Dashboard({ session, profile, agence }) {
 </button>
 <button onClick={() => setPage('correlation')}
   className="w-full bg-indigo-700 text-white font-black py-4 rounded-2xl text-sm">
-  📈 Corrélation visites/ventes
-</button>
-<button onClick={() => setPage('appareils')}
-  className="w-full bg-gray-700 text-white font-black py-4 rounded-2xl text-sm">
+  
   📱 Appareils autorisés
 </button>
             <button onClick={() => setPage('campagnes')} className="w-full bg-orange-600 text-white font-black py-4 rounded-2xl text-sm">🎯 Campagnes</button>
