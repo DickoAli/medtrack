@@ -393,6 +393,10 @@ export default function Dashboard({ session, profile, agence }) {
   className="w-full bg-slate-700 text-white font-black py-4 rounded-2xl text-sm">
   📋 Journal d'audit
 </button>
+<button onClick={() => setPage('correlation')}
+  className="w-full bg-indigo-700 text-white font-black py-4 rounded-2xl text-sm">
+  📈 Corrélation visites/ventes
+</button>
 <button onClick={() => setPage('appareils')}
   className="w-full bg-gray-700 text-white font-black py-4 rounded-2xl text-sm">
   📱 Appareils autorisés
