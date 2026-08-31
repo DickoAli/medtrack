@@ -33,17 +33,21 @@ export default function Extranet({ onBack, profile }) {
     setSaving(true)
     const url = form.url.startsWith('http') ? form.url : `https://${form.url}`
     if (editing) {
-      await supabase.from('extranets').update({
-        nom: form.nom, url, identifiant: form.identifiant,
-        mot_de_passe: form.mot_de_passe, note: form.note
-      }).eq('id', editing)
-    } else {
-      await supabase.from('extranets').insert({
-        nom: form.nom, url, identifiant: form.identifiant,
-        mot_de_passe: form.mot_de_passe, note: form.note,
-        agence_id: profile.agence_id
-      })
-    }
+  await supabase.from('extranets').update({
+    nom: form.nom, url,
+    identifiant_enc: form.identifiant ? btoa(form.identifiant) : null,
+    mot_de_passe_enc: form.mot_de_passe ? btoa(form.mot_de_passe) : null,
+    note: form.note
+  }).eq('id', editing)
+} else {
+  await supabase.from('extranets').insert({
+    nom: form.nom, url,
+    identifiant_enc: form.identifiant ? btoa(form.identifiant) : null,
+    mot_de_passe_enc: form.mot_de_passe ? btoa(form.mot_de_passe) : null,
+    note: form.note,
+    agence_id: profile.agence_id
+  })
+}
     setSaving(false)
     setShowForm(false)
     setEditing(null)
@@ -65,14 +69,27 @@ export default function Extranet({ onBack, profile }) {
     fetchExtranets()
   }
 
-  const handleOpen = (extranet) => {
-    if (extranet.identifiant) {
-      setShowCredentials(extranet)
-      setShowPassword(false)
-    } else {
-      window.open(extranet.url, '_blank')
-    }
+  const decrypt = (encrypted) => {
+  if (!encrypted) return ''
+  try {
+    return atob(encrypted)
+  } catch {
+    return encrypted
   }
+}
+
+const handleOpen = (extranet) => {
+  if (extranet.identifiant_enc || extranet.mot_de_passe_enc) {
+    setShowCredentials({
+      ...extranet,
+      identifiant_dec: decrypt(extranet.identifiant_enc),
+      mot_de_passe_dec: decrypt(extranet.mot_de_passe_enc)
+    })
+    setShowPassword(false)
+  } else {
+    window.open(extranet.url, '_blank')
+  }
+}
 
   if (loading) return (
     <div className="min-h-screen bg-slate-100 flex items-center justify-center">
@@ -115,45 +132,47 @@ export default function Extranet({ onBack, profile }) {
             <p className="text-xs text-slate-400 mb-4">{showCredentials.url}</p>
 
             <div className="flex flex-col gap-3 mb-4">
-              <div className="bg-slate-50 rounded-xl p-3">
-                <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Identifiant</p>
-                <div className="flex items-center justify-between">
-                  <p className="font-black text-blue-950">{showCredentials.identifiant}</p>
-                  <button
-                    onClick={() => {
-                      navigator.clipboard.writeText(showCredentials.identifiant)
-                      alert('Identifiant copié !')
-                    }}
-                    className="bg-blue-50 text-blue-600 px-2 py-1 rounded-lg text-xs font-bold"
-                  >
-                    Copier
-                  </button>
-                </div>
-              </div>
+              {/* Identifiant */}
+<div className="bg-slate-50 rounded-xl p-3">
+  <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Identifiant</p>
+  <div className="flex items-center justify-between">
+    <p className="font-black text-blue-950">{showCredentials.identifiant_dec}</p>
+    <button
+      onClick={() => {
+        navigator.clipboard.writeText(showCredentials.identifiant_dec)
+        alert('Identifiant copié !')
+      }}
+      className="bg-blue-50 text-blue-600 px-2 py-1 rounded-lg text-xs font-bold"
+    >
+      Copier
+    </button>
+  </div>
+</div>
 
-              <div className="bg-slate-50 rounded-xl p-3">
-                <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Mot de passe</p>
-                <div className="flex items-center justify-between gap-2">
-                  <p className="font-black text-blue-950 flex-1">
-                    {showPassword ? showCredentials.mot_de_passe : '••••••••••'}
-                  </p>
-                  <button
-                    onClick={() => setShowPassword(!showPassword)}
-                    className="bg-slate-100 text-slate-500 px-2 py-1 rounded-lg text-xs font-bold"
-                  >
-                    {showPassword ? '🙈' : '👁️'}
-                  </button>
-                  <button
-                    onClick={() => {
-                      navigator.clipboard.writeText(showCredentials.mot_de_passe)
-                      alert('Mot de passe copié !')
-                    }}
-                    className="bg-blue-50 text-blue-600 px-2 py-1 rounded-lg text-xs font-bold"
-                  >
-                    Copier
-                  </button>
-                </div>
-              </div>
+{/* Mot de passe */}
+<div className="bg-slate-50 rounded-xl p-3">
+  <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Mot de passe</p>
+  <div className="flex items-center justify-between gap-2">
+    <p className="font-black text-blue-950 flex-1">
+      {showPassword ? showCredentials.mot_de_passe_dec : '••••••••••'}
+    </p>
+    <button
+      onClick={() => setShowPassword(!showPassword)}
+      className="bg-slate-100 text-slate-500 px-2 py-1 rounded-lg text-xs font-bold"
+    >
+      {showPassword ? '🙈' : '👁️'}
+    </button>
+    <button
+      onClick={() => {
+        navigator.clipboard.writeText(showCredentials.mot_de_passe_dec)
+        alert('Mot de passe copié !')
+      }}
+      className="bg-blue-50 text-blue-600 px-2 py-1 rounded-lg text-xs font-bold"
+    >
+      Copier
+    </button>
+  </div>
+</div>
 
               {showCredentials.note && (
                 <div className="bg-amber-50 rounded-xl p-3">

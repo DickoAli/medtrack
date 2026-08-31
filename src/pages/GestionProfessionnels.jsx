@@ -1,3 +1,5 @@
+import * as XLSX from 'xlsx'
+import { useRef } from 'react'
 import { useState, useEffect } from 'react'
 import { supabase } from '../supabase'
 
@@ -13,6 +15,9 @@ export default function GestionProfessionnels({ onBack, profile }) {
   const [search, setSearch] = useState('')
   const [filterPotential, setFilterPotential] = useState('tous')
   const [filterType, setFilterType] = useState('tous')
+  const [importing, setImporting] = useState(false)
+const [showImport, setShowImport] = useState(false)
+const fileRef = useRef(null)
 
   const [form, setForm] = useState({
     nom: '', prenom: '', specialite: '', type: '',
@@ -140,7 +145,99 @@ export default function GestionProfessionnels({ onBack, profile }) {
       <p className="text-teal-500 font-bold">Chargement...</p>
     </div>
   )
+const downloadTemplate = () => {
+  const template = [
+    {
+      'Prenom': 'Amadou',
+      'Nom': 'Coulibaly',
+      'Type': 'medecin_generaliste',
+      'Specialite': 'Cardiologie',
+      'Telephone': '00223XXXXXXXX',
+      'Email': 'amadou@exemple.ml',
+      'Potential': 'A',
+      'Visites_mois': 2,
+      'Etablissement': 'CSRef Commune I',
+      'Territoire': 'Bamako Nord',
+      'Statut': 'actif'
+    }
+  ]
+  const wb = XLSX.utils.book_new()
+  const ws = XLSX.utils.json_to_sheet(template)
+  XLSX.utils.book_append_sheet(wb, ws, 'Professionnels')
+  const wbout = XLSX.write(wb, { bookType: 'xlsx', type: 'array' })
+  const blob = new Blob([wbout], { type: 'application/octet-stream' })
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = 'template_professionnels_medtrack.xlsx'
+  a.click()
+}
 
+const handleImport = async (file) => {
+  setImporting(true)
+  const reader = new FileReader()
+  reader.onload = async (e) => {
+    const workbook = XLSX.read(e.target.result, { type: 'binary' })
+    const sheet = workbook.Sheets[workbook.SheetNames[0]]
+    const rows = XLSX.utils.sheet_to_json(sheet)
+
+    let imported = 0
+    let errors = 0
+
+    for (const row of rows) {
+      const prenom = row['Prenom'] || row['prenom'] || row['PRENOM'] || ''
+      const nom = row['Nom'] || row['nom'] || row['NOM'] || ''
+      const type = row['Type'] || row['type'] || 'medecin_generaliste'
+      const specialite = row['Specialite'] || row['specialite'] || ''
+      const telephone = row['Telephone'] || row['telephone'] || ''
+      const email = row['Email'] || row['email'] || ''
+      const potential = row['Potential'] || row['potential'] || 'B'
+      const visit_frequency = parseInt(row['Visites_mois'] || row['visites_mois'] || 1)
+      const etablissementNom = row['Etablissement'] || row['etablissement'] || ''
+      const territoireNom = row['Territoire'] || row['territoire'] || ''
+      const statut = row['Statut'] || row['statut'] || 'actif'
+
+      if (!nom || !prenom) { errors++; continue }
+
+      let establishment_id = null
+      let territory_id = null
+
+      if (etablissementNom) {
+        const etab = etablissements.find(e =>
+          e.nom.toLowerCase().includes(etablissementNom.toLowerCase())
+        )
+        if (etab) establishment_id = etab.id
+      }
+
+      if (territoireNom) {
+        const terr = territoires.find(t =>
+          t.nom.toLowerCase().includes(territoireNom.toLowerCase())
+        )
+        if (terr) territory_id = terr.id
+      }
+
+      const { error } = await supabase.from('healthcare_professionals').insert({
+        prenom, nom, type, specialite: specialite || null,
+        telephone: telephone || null, email: email || null,
+        potential: ['A', 'B', 'C'].includes(potential) ? potential : 'B',
+        visit_frequency: visit_frequency || 1,
+        establishment_id, territory_id,
+        statut: ['actif', 'inactif', 'ne_pas_visiter'].includes(statut) ? statut : 'actif',
+        agence_id: profile.agence_id
+      })
+
+      if (error) errors++
+      else imported++
+    }
+
+    setImporting(false)
+    setShowImport(false)
+    setSuccessMsg(`Import terminé — ${imported} professionnels importés, ${errors} erreurs`)
+    setTimeout(() => setSuccessMsg(''), 5000)
+    fetchAll()
+  }
+  reader.readAsBinaryString(file)
+}
   return (
     <div className="min-h-screen bg-slate-100">
       {/* Header */}

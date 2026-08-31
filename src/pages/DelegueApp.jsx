@@ -1,60 +1,103 @@
-import ProfilDelegue from './ProfilDelegue'
 import { useState, useEffect, useRef } from 'react'
 import { supabase } from '../supabase'
-import { saveVisiteLocally, getPendingVisites, deleteLocalVisite, countPendingVisites, isOnline } from '../offline'
+import {
+  saveVisiteLocally, getPendingVisites, deleteLocalVisite,
+  countPendingVisites, isOnline,
+  saveAgendaOffline, getAgendaOffline,
+  savePortfolioOffline, getPortfolioOffline,
+  saveProduitsOffline, getProduitsOffline,
+  saveSupportsOffline, getSupportsOffline,
+  getOfflineStats, setLastSync
+} from '../offline'
 import Extranet from './Extranet'
+import VisiteDetail from './VisiteDetail'
+import ProfilDelegue from './ProfilDelegue'
 
 export default function DelegueApp({ session, profile }) {
-  const [supports, setSupports] = useState([])
   const [visites, setVisites] = useState([])
   const [produits, setProduits] = useState([])
   const [portfolio, setPortfolio] = useState([])
   const [agenda, setAgenda] = useState([])
+  const [supports, setSupports] = useState([])
   const [loading, setLoading] = useState(true)
   const [page, setPage] = useState('accueil')
   const [position, setPosition] = useState(null)
   const [pendingCount, setPendingCount] = useState(0)
   const [syncing, setSyncing] = useState(false)
+  const [offlineStats, setOfflineStats] = useState(null)
+  const [selectedVisite, setSelectedVisite] = useState(null)
+  const [showProfil, setShowProfil] = useState(false)
   const watchRef = useRef(null)
   const photoRef = useRef(null)
+  const photoFileRef = useRef(null)
 
   const [form, setForm] = useState({
     medecin_id: '', produits_ids: [], type_lieu: '',
     nom_contact: '', titre_contact: '', telephone_contact: '',
     statut: 'Réalisée', note: '', type: 'immediate',
-    date_prevue: '', photo: null, photoPreview: null,
+    date_prevue: '', photoPreview: null,
     visit_plan_id: '', healthcare_professional_id: '',
     establishment_id: '', campaign_id: ''
   })
   const [saving, setSaving] = useState(false)
   const [success, setSuccess] = useState(false)
-  const [showProfil, setShowProfil] = useState(false)
 
   const fetchData = async () => {
-    const { data: s } = await supabase
-  .from('content_assets')
-  .select('*, produits(nom), campaigns(nom), laboratoires(nom)')
-  .eq('agence_id', profile.agence_id)
-  .eq('is_published', true)
-  .order('created_at', { ascending: false })
-setSupports(s || [])
-    const [{ data: v }, { data: p }, { data: po }, { data: ag }] = await Promise.all([
-      supabase.from('visites').select('*').eq('delegate_id', profile.delegate_id).order('created_at', { ascending: false }),
-      supabase.from('produits').select('*').eq('agence_id', profile.agence_id).eq('statut_produit', 'Normal').order('nom'),
-      supabase.from('delegate_portfolios')
-        .select('*, healthcare_professionals(id, nom, prenom, potential, specialite, establishments(nom)), campaigns(nom)')
-        .eq('delegate_id', profile.delegate_id)
-        .eq('is_active', true),
-      supabase.from('visit_plans')
-        .select('*, healthcare_professionals(nom, prenom, potential), establishments(nom), campaigns(nom)')
-        .eq('delegate_id', profile.delegate_id)
-        .in('statut', ['pending', 'confirmed'])
-        .order('planned_date', { ascending: true })
-    ])
-    setVisites(v || [])
-    setProduits(p || [])
-    setPortfolio(po || [])
-    setAgenda(ag || [])
+    if (isOnline()) {
+      const [{ data: v }, { data: p }, { data: po }, { data: ag }, { data: sup }] = await Promise.all([
+        supabase.from('visites')
+          .select('*')
+          .eq('delegate_id', profile.delegate_id)
+          .order('created_at', { ascending: false }),
+        supabase.from('produits')
+          .select('*')
+          .eq('agence_id', profile.agence_id)
+          .eq('statut_produit', 'Normal')
+          .order('nom'),
+        supabase.from('delegate_portfolios')
+          .select('*, healthcare_professionals(id, nom, prenom, potential, specialite, establishments(nom)), campaigns(nom)')
+          .eq('delegate_id', profile.delegate_id)
+          .eq('is_active', true),
+        supabase.from('visit_plans')
+          .select('*, healthcare_professionals(nom, prenom, potential), establishments(nom), campaigns(nom)')
+          .eq('delegate_id', profile.delegate_id)
+          .in('statut', ['pending', 'confirmed'])
+          .order('planned_date', { ascending: true }),
+        supabase.from('content_assets')
+          .select('*, produits(nom), laboratoires(nom)')
+          .eq('agence_id', profile.agence_id)
+          .eq('is_published', true)
+          .eq('is_offline', true)
+      ])
+
+      setVisites(v || [])
+      setProduits(p || [])
+      setPortfolio(po || [])
+      setAgenda(ag || [])
+      setSupports(sup || [])
+
+      await Promise.all([
+        saveAgendaOffline(ag || []),
+        savePortfolioOffline(po || []),
+        saveProduitsOffline(p || []),
+        saveSupportsOffline(sup || []),
+        setLastSync('last_sync')
+      ])
+    } else {
+      const [ag, po, p, sup] = await Promise.all([
+        getAgendaOffline(),
+        getPortfolioOffline(),
+        getProduitsOffline(),
+        getSupportsOffline()
+      ])
+      setAgenda(ag)
+      setPortfolio(po)
+      setProduits(p)
+      setSupports(sup)
+    }
+
+    const stats = await getOfflineStats()
+    setOfflineStats(stats)
     setLoading(false)
   }
 
@@ -87,9 +130,6 @@ setSupports(s || [])
     for (const v of pending) {
       const { local_id, synced: _, produits_ids, ...visite } = v
       const { data, error } = await supabase.from('visites').insert(visite).select().single()
-      if (saved) {
-  await supabase.rpc('calculate_confidence_score', { visit_id: saved.id })
-}
       if (!error && data) {
         if (produits_ids?.length > 0) {
           await supabase.from('visite_produits').insert(
@@ -141,6 +181,18 @@ setSupports(s || [])
     }))
   }
 
+  const resetForm = () => {
+    photoFileRef.current = null
+    setForm({
+      medecin_id: '', produits_ids: [], type_lieu: '',
+      nom_contact: '', titre_contact: '', telephone_contact: '',
+      statut: 'Réalisée', note: '', type: 'immediate',
+      date_prevue: '', photoPreview: null,
+      visit_plan_id: '', healthcare_professional_id: '',
+      establishment_id: '', campaign_id: ''
+    })
+  }
+
   const handleSave = async () => {
     if (!form.type_lieu) { alert('Sélectionnez le type de lieu'); return }
     if (!form.nom_contact) { alert('Le nom du contact est obligatoire'); return }
@@ -148,11 +200,12 @@ setSupports(s || [])
     if (form.type === 'planifiee' && !form.date_prevue) { alert('Choisissez une date'); return }
 
     setSaving(true)
-
     let photo_url = null
-    if (form.photo && isOnline()) {
-      const fileName = `${profile.delegate_id}/${Date.now()}_${form.photo.name}`
-      const { error: uploadError } = await supabase.storage.from('PHOTOS').upload(fileName, form.photo)
+
+    if (photoFileRef.current && isOnline()) {
+      const file = photoFileRef.current
+      const fileName = `${profile.delegate_id}/${Date.now()}_${file.name}`
+      const { error: uploadError } = await supabase.storage.from('PHOTOS').upload(fileName, file)
       if (!uploadError) {
         photo_url = `${import.meta.env.VITE_SUPABASE_URL}/storage/v1/object/public/PHOTOS/${fileName}`
       }
@@ -195,28 +248,25 @@ setSupports(s || [])
     }
 
     const { data: saved } = await supabase.from('visites').insert(visiteData).select().single()
+
     if (saved) {
-  await supabase.rpc('calculate_confidence_score', { visit_id: saved.id })
-  // Log audit
-  await supabase.from('audit_logs').insert({
-    agence_id: profile.agence_id,
-    user_id: profile.id,
-    action: 'visit_created',
-    table_name: 'visites',
-    record_id: saved.id,
-    new_values: { delegate_id: saved.delegate_id, statut: saved.statut, nom_contact: saved.nom_contact }
-  })
-}
-
-    if (saved && form.produits_ids.length > 0) {
-      await supabase.from('visite_produits').insert(
-        form.produits_ids.map(pid => ({ visite_id: saved.id, produit_id: pid, agence_id: profile.agence_id }))
-      )
-    }
-
-    // Mettre à jour le plan de visite si lié
-    if (form.visit_plan_id) {
-      await supabase.from('visit_plans').update({ statut: 'done' }).eq('id', form.visit_plan_id)
+      if (form.produits_ids.length > 0) {
+        await supabase.from('visite_produits').insert(
+          form.produits_ids.map(pid => ({ visite_id: saved.id, produit_id: pid, agence_id: profile.agence_id }))
+        )
+      }
+      await supabase.rpc('calculate_confidence_score', { visit_id: saved.id })
+      await supabase.from('audit_logs').insert({
+        agence_id: profile.agence_id,
+        user_id: profile.id,
+        action: 'visit_created',
+        table_name: 'visites',
+        record_id: saved.id,
+        new_values: { delegate_id: saved.delegate_id, statut: saved.statut, nom_contact: saved.nom_contact }
+      })
+      if (form.visit_plan_id) {
+        await supabase.from('visit_plans').update({ statut: 'done' }).eq('id', form.visit_plan_id)
+      }
     }
 
     setSaving(false)
@@ -225,15 +275,6 @@ setSupports(s || [])
     await fetchData()
     setTimeout(() => { setPage('accueil'); setSuccess(false) }, 1500)
   }
-
-  const resetForm = () => setForm({
-    medecin_id: '', produits_ids: [], type_lieu: '',
-    nom_contact: '', titre_contact: '', telephone_contact: '',
-    statut: 'Réalisée', note: '', type: 'immediate',
-    date_prevue: '', photo: null, photoPreview: null,
-    visit_plan_id: '', healthcare_professional_id: '',
-    establishment_id: '', campaign_id: ''
-  })
 
   const startVisiteFromPlan = (plan) => {
     setForm(f => ({
@@ -255,6 +296,18 @@ setSupports(s || [])
     </div>
   )
 
+  if (selectedVisite) return (
+    <VisiteDetail
+      visite={selectedVisite}
+      profile={profile}
+      onBack={() => { setSelectedVisite(null); fetchData() }}
+    />
+  )
+
+  if (showProfil) return (
+    <ProfilDelegue profile={profile} onBack={() => setShowProfil(false)} />
+  )
+
   const todayStr = new Date().toISOString().slice(0, 10)
   const todayVisites = visites.filter(v => v.created_at?.slice(0, 10) === todayStr)
   const todayAgenda = agenda.filter(a => a.planned_date === todayStr)
@@ -267,9 +320,16 @@ setSupports(s || [])
     B: 'bg-amber-100 text-amber-600',
     C: 'bg-slate-100 text-slate-500'
   }
-if (showProfil) return (
-  <ProfilDelegue profile={profile} onBack={() => setShowProfil(false)} />
-)
+
+  const TYPE_ICONS = {
+    pdf: '📄', image: '🖼️', video: '🎥', presentation: '📊', document: '📝'
+  }
+  const TYPE_COLORS_SUPPORT = {
+    pdf: 'bg-red-100 text-red-600', image: 'bg-blue-100 text-blue-600',
+    video: 'bg-purple-100 text-purple-600', presentation: 'bg-amber-100 text-amber-600',
+    document: 'bg-slate-100 text-slate-500'
+  }
+
   if (page === 'extranet') return <Extranet profile={profile} onBack={() => setPage('accueil')} />
 
   return (
@@ -287,6 +347,10 @@ if (showProfil) return (
         </div>
         <div className="flex items-center gap-3">
           <div className={`w-2 h-2 rounded-full ${position ? 'bg-teal-400' : 'bg-red-400'}`} />
+          <button onClick={() => setShowProfil(true)}
+            className="w-8 h-8 rounded-full bg-teal-400 flex items-center justify-center font-black text-blue-950 text-sm">
+            {profile.delegates?.prenom?.[0]}{profile.delegates?.nom?.[0]}
+          </button>
           <button onClick={() => supabase.auth.signOut()}
             className="bg-red-500 text-white px-3 py-1.5 rounded-xl font-bold text-xs">
             Quitter
@@ -302,12 +366,19 @@ if (showProfil) return (
         </span>
       </div>
 
+      {/* Hors ligne */}
       {!navigator.onLine && (
-        <div className="bg-rose-500 px-6 py-2 text-xs font-bold flex items-center gap-2">
-          <span>📵</span><span className="text-white">Hors ligne — visites sauvegardées localement</span>
+        <div className="bg-rose-500 px-6 py-2 text-xs font-bold flex items-center justify-between">
+          <span>📵 Hors ligne</span>
+          {offlineStats && (
+            <span className="text-white text-xs">
+              {offlineStats.agenda} RDV · {offlineStats.portfolio} cibles · {offlineStats.produits} produits en cache
+            </span>
+          )}
         </div>
       )}
 
+      {/* Sync */}
       {pendingCount > 0 && navigator.onLine && (
         <div className="bg-amber-500 px-6 py-2 text-xs font-bold flex items-center justify-between">
           <span className="text-white">⏳ {pendingCount} visite(s) en attente</span>
@@ -321,13 +392,13 @@ if (showProfil) return (
       {/* Nav */}
       <div className="bg-white flex border-b border-slate-200">
         {[
-          { id: 'supports', label: '📚' },
-          { id: 'accueil', label: '🏠' },
+          { id: 'accueil', label: '🏠Accueil' },
           { id: 'agenda', label: '📅 Agenda' },
           { id: 'portefeuille', label: '👜 Cibles' },
           { id: 'visite', label: '+ Visite' },
-          { id: 'historique', label: '📋' },
-          { id: 'extranet', label: '🌐' },
+          { id: 'historique', label: '📋Historique' },
+          { id: 'supports', label: '📚 Supports' },
+          { id: 'extranet', label: '🌐Extranet' },
         ].map(n => (
           <button key={n.id} onClick={() => { setPage(n.id); setSuccess(false) }}
             className={`flex-1 py-3 text-xs font-black transition-colors ${page === n.id ? 'text-teal-500 border-b-2 border-teal-500' : 'text-slate-400'}`}>
@@ -354,7 +425,6 @@ if (showProfil) return (
             </div>
           </div>
 
-          {/* Agenda aujourd'hui */}
           {todayAgenda.length > 0 && (
             <div>
               <p className="text-xs text-amber-500 font-black uppercase tracking-wider mb-2">
@@ -387,7 +457,6 @@ if (showProfil) return (
             + Enregistrer une visite
           </button>
 
-          {/* Visites du jour */}
           {todayVisites.length > 0 && (
             <div>
               <p className="text-xs text-slate-400 font-bold uppercase tracking-wider mb-2">
@@ -398,9 +467,9 @@ if (showProfil) return (
                   <div key={v.id} className="bg-white rounded-2xl p-4">
                     <div className="flex items-center justify-between">
                       <p className="font-bold text-blue-950 text-sm">{v.nom_contact || '—'}</p>
-                      <span className={`text-xs font-bold px-2 py-1 rounded-full ${v.statut === 'Réalisée' ? 'bg-teal-100 text-teal-600' : 'bg-rose-100 text-rose-500'}`}>
-                        {v.statut}
-                      </span>
+                      <span className={`text-xs font-bold px-2 py-1 rounded-full ${
+                        v.statut === 'Réalisée' ? 'bg-teal-100 text-teal-600' : 'bg-rose-100 text-rose-500'
+                      }`}>{v.statut}</span>
                     </div>
                     <p className="text-xs text-slate-400 mt-1">{v.type_lieu} · {v.produit}</p>
                   </div>
@@ -417,7 +486,6 @@ if (showProfil) return (
           <p className="text-xs font-black text-blue-950 uppercase tracking-wider">
             {agenda.length} visite{agenda.length > 1 ? 's' : ''} planifiée{agenda.length > 1 ? 's' : ''}
           </p>
-
           {agenda.length === 0 ? (
             <div className="bg-white rounded-2xl p-8 text-center">
               <p className="text-4xl mb-3">📅</p>
@@ -452,7 +520,6 @@ if (showProfil) return (
                   </div>
                 </div>
               )}
-
               {upcomingAgenda.length > 0 && (
                 <div>
                   <p className="text-xs text-teal-500 font-black uppercase tracking-wider mb-2">À venir</p>
@@ -483,7 +550,6 @@ if (showProfil) return (
           <p className="text-xs font-black text-blue-950 uppercase tracking-wider">
             {portfolio.length} cible{portfolio.length > 1 ? 's' : ''} dans mon portefeuille
           </p>
-
           {portfolio.length === 0 ? (
             <div className="bg-white rounded-2xl p-8 text-center">
               <p className="text-4xl mb-3">👜</p>
@@ -512,21 +578,19 @@ if (showProfil) return (
                           {p.visit_frequency}x/mois
                         </span>
                         <span className="text-xs bg-slate-50 text-slate-500 font-bold px-2 py-0.5 rounded-full">
-                          {p.visits_done} visite{p.visits_done > 1 ? 's' : ''} réalisée{p.visits_done > 1 ? 's' : ''}
+                          {p.visits_done || 0} visite{(p.visits_done || 0) > 1 ? 's' : ''} réalisée{(p.visits_done || 0) > 1 ? 's' : ''}
                         </span>
                       </div>
                     </div>
-                    <button
-                      onClick={() => {
-                        setForm(f => ({
-                          ...f,
-                          healthcare_professional_id: pro.id,
-                          nom_contact: `${pro.prenom} ${pro.nom}`,
-                          campaign_id: p.campaign_id || ''
-                        }))
-                        setPage('visite')
-                      }}
-                      className="bg-teal-400 text-blue-950 px-3 py-2 rounded-xl text-xs font-black flex-shrink-0">
+                    <button onClick={() => {
+                      setForm(f => ({
+                        ...f,
+                        healthcare_professional_id: pro.id,
+                        nom_contact: `${pro.prenom} ${pro.nom}`,
+                        campaign_id: p.campaign_id || ''
+                      }))
+                      setPage('visite')
+                    }} className="bg-teal-400 text-blue-950 px-3 py-2 rounded-xl text-xs font-black flex-shrink-0">
                       Visiter
                     </button>
                   </div>
@@ -651,13 +715,16 @@ if (showProfil) return (
             <input ref={photoRef} type="file" accept="image/*" capture="environment"
               onChange={e => {
                 const file = e.target.files[0]
-                if (file) { set('photo', file); set('photoPreview', URL.createObjectURL(file)) }
+                if (file) {
+                  photoFileRef.current = file
+                  set('photoPreview', URL.createObjectURL(file))
+                }
               }}
               className="hidden" />
             {form.photoPreview ? (
               <div className="mt-2 relative">
                 <img src={form.photoPreview} alt="Preview" className="w-full h-40 object-cover rounded-xl" />
-                <button onClick={() => { set('photo', null); set('photoPreview', null) }}
+                <button onClick={() => { photoFileRef.current = null; set('photoPreview', null) }}
                   className="absolute top-2 right-2 bg-rose-500 text-white px-2 py-1 rounded-lg text-xs font-black">✕</button>
               </div>
             ) : (
@@ -701,7 +768,8 @@ if (showProfil) return (
                   <p className="font-bold text-blue-950 text-sm">{v.nom_contact || '—'}</p>
                   <span className={`text-xs font-bold px-2 py-1 rounded-full ${
                     v.statut === 'Réalisée' ? 'bg-teal-100 text-teal-600' :
-                    v.statut === 'Planifiée' ? 'bg-amber-100 text-amber-600' : 'bg-rose-100 text-rose-500'
+                    v.statut === 'Planifiée' ? 'bg-amber-100 text-amber-600' :
+                    'bg-rose-100 text-rose-500'
                   }`}>{v.statut}</span>
                 </div>
                 {v.titre_contact && <p className="text-xs text-slate-400">{v.titre_contact}</p>}
@@ -712,67 +780,65 @@ if (showProfil) return (
                     onClick={() => window.open(v.photo_url, '_blank')} />
                 )}
                 {v.note && <p className="text-xs text-slate-500 italic mt-1">{v.note}</p>}
+                {v.confidence_score !== null && v.confidence_score !== undefined && (
+                  <span className={`text-xs font-black px-2 py-0.5 rounded-full mt-1 inline-block ${
+                    v.confidence_status === 'validated' ? 'bg-green-100 text-green-600' :
+                    v.confidence_status === 'to_check' ? 'bg-amber-100 text-amber-600' :
+                    'bg-rose-100 text-rose-500'
+                  }`}>{v.confidence_score}pts</span>
+                )}
                 <p className="text-xs text-slate-300 mt-2">{v.created_at?.slice(0, 10)}</p>
+                <button onClick={() => setSelectedVisite(v)}
+                  className="w-full mt-2 bg-blue-950 text-white font-black py-2 rounded-xl text-xs">
+                  📝 Compte rendu
+                </button>
               </div>
             ))
           )}
         </div>
       )}
-      {page === 'supports' && (
-  <div className="p-6 flex flex-col gap-3 pb-10">
-    <p className="text-xs font-black text-blue-950 uppercase tracking-wider">
-      {supports.length} support{supports.length > 1 ? 's' : ''} disponible{supports.length > 1 ? 's' : ''}
-    </p>
 
-    {supports.length === 0 ? (
-      <div className="bg-white rounded-2xl p-8 text-center">
-        <p className="text-4xl mb-3">📚</p>
-        <p className="text-slate-400 text-sm">Aucun support disponible</p>
-      </div>
-    ) : (
-      supports.map(s => {
-        const TYPE_ICONS = {
-          pdf: '📄', image: '🖼️', video: '🎥',
-          presentation: '📊', document: '📝'
-        }
-        const TYPE_COLORS = {
-          pdf: 'bg-red-100 text-red-600',
-          image: 'bg-blue-100 text-blue-600',
-          video: 'bg-purple-100 text-purple-600',
-          presentation: 'bg-amber-100 text-amber-600',
-          document: 'bg-slate-100 text-slate-500'
-        }
-        return (
-          <div key={s.id} className="bg-white rounded-2xl p-4">
-            <div className="flex items-start gap-3">
-              <span className={`w-10 h-10 rounded-xl flex items-center justify-center text-lg flex-shrink-0 ${TYPE_COLORS[s.type]}`}>
-                {TYPE_ICONS[s.type]}
-              </span>
-              <div className="flex-1 min-w-0">
-                <p className="font-black text-blue-950 text-sm truncate">{s.nom}</p>
-                {s.laboratoires && <p className="text-xs text-slate-400">🧪 {s.laboratoires.nom}</p>}
-                {s.produits && <p className="text-xs text-slate-400">💊 {s.produits.nom}</p>}
-                {s.campaigns && <p className="text-xs text-slate-400">🎯 {s.campaigns.nom}</p>}
-                <div className="flex gap-2 mt-2">
-                  <span className="text-xs text-slate-400">v{s.version}</span>
-                  {s.is_offline && (
-                    <span className="text-xs bg-blue-50 text-blue-600 font-bold px-2 py-0.5 rounded-full">
-                      📵 Offline
-                    </span>
-                  )}
+      {/* SUPPORTS */}
+      {page === 'supports' && (
+        <div className="p-6 flex flex-col gap-3 pb-10">
+          <p className="text-xs font-black text-blue-950 uppercase tracking-wider">
+            {supports.length} support{supports.length > 1 ? 's' : ''} disponible{supports.length > 1 ? 's' : ''}
+          </p>
+          {supports.length === 0 ? (
+            <div className="bg-white rounded-2xl p-8 text-center">
+              <p className="text-4xl mb-3">📚</p>
+              <p className="text-slate-400 text-sm">Aucun support disponible</p>
+            </div>
+          ) : (
+            supports.map(s => (
+              <div key={s.id} className="bg-white rounded-2xl p-4">
+                <div className="flex items-start gap-3">
+                  <span className={`w-10 h-10 rounded-xl flex items-center justify-center text-lg flex-shrink-0 ${TYPE_COLORS_SUPPORT[s.type]}`}>
+                    {TYPE_ICONS[s.type]}
+                  </span>
+                  <div className="flex-1 min-w-0">
+                    <p className="font-black text-blue-950 text-sm truncate">{s.nom}</p>
+                    {s.laboratoires && <p className="text-xs text-slate-400">🧪 {s.laboratoires.nom}</p>}
+                    {s.produits && <p className="text-xs text-slate-400">💊 {s.produits.nom}</p>}
+                    <div className="flex gap-2 mt-1">
+                      <span className="text-xs text-slate-400">v{s.version}</span>
+                      {s.is_offline && (
+                        <span className="text-xs bg-blue-50 text-blue-600 font-bold px-2 py-0.5 rounded-full">
+                          📵 Offline
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                  <a href={s.file_url} target="_blank" rel="noreferrer"
+                    className="bg-teal-400 text-blue-950 px-3 py-2 rounded-xl text-xs font-black flex-shrink-0">
+                    Ouvrir
+                  </a>
                 </div>
               </div>
-              <a href={s.file_url} target="_blank" rel="noreferrer"
-                className="bg-teal-400 text-blue-950 px-3 py-2 rounded-xl text-xs font-black flex-shrink-0">
-                Ouvrir
-              </a>
-            </div>
-          </div>
-        )
-      })
-    )}
-  </div>
-)}
+            ))
+          )}
+        </div>
+      )}
     </div>
   )
 }

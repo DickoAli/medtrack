@@ -10,9 +10,9 @@ export default defineConfig({
     VitePWA({
       registerType: 'autoUpdate',
       manifest: {
-        name: 'MedTrack',
+        name: 'MedTrack — Pharma Field Force',
         short_name: 'MedTrack',
-        description: 'Suivi des délégués médicaux',
+        description: 'Gestion des délégués médicaux et visites terrain',
         theme_color: '#0B1F3A',
         background_color: '#0B1F3A',
         display: 'standalone',
@@ -21,36 +21,27 @@ export default defineConfig({
         start_url: '/',
         icons: [
           {
-            src: '/favicon.svg',
+            src: '/icon-192.png',
             sizes: '192x192',
-            type: 'image/svg+xml'
+            type: 'image/png',
+            purpose: 'any maskable'
           },
           {
-            src: '/favicon.svg',
+            src: '/icon-512.png',
             sizes: '512x512',
-            type: 'image/svg+xml'
+            type: 'image/png',
+            purpose: 'any maskable'
+          },
+          {
+            src: '/apple-touch-icon.png',
+            sizes: '180x180',
+            type: 'image/png'
           }
         ]
       },
       workbox: {
-        globPatterns: ['**/*.{js,css,html,ico,png,svg}'],
-        runtimeCaching: [
-          {
-            urlPattern: /^https:\/\/uzlyegflinvhcqeohxfw\.supabase\.co\/.*/i,
-            handler: 'NetworkFirst',
-            options: {
-              cacheName: 'supabase-cache',
-              expiration: {
-                maxEntries: 100,
-                maxAgeSeconds: 86400
-              },
-              cacheableResponse: {
-                statuses: [0, 200]
-              }
-            }
-          }
-        ]
+        globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2}']
       }
     })
-  ],
+  ]
 })

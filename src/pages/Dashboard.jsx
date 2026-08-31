@@ -1,3 +1,7 @@
+import ExportPDF from './ExportPDF'
+import Onboarding from './Onboarding'
+import GestionMarques from './GestionMarques'
+import RechercheGlobale from './RechercheGlobale'
 import GestionAppareils from './GestionAppareils'
 import JournalAudit from './JournalAudit'
 import CorrelationVentes from './CorrelationVentes'
@@ -87,6 +91,9 @@ export default function Dashboard({ session, profile, agence }) {
 
   // Pages
   const pages = {
+pdf: <ExportPDF profile={profile} agence={agence} onBack={() => setPage('dashboard')} />,
+    marques: <GestionMarques profile={profile} onBack={() => setPage('dashboard')} />,
+    recherche: <RechercheGlobale profile={profile} onBack={() => setPage('dashboard')} />,
     appareils: <GestionAppareils profile={profile} onBack={() => setPage('dashboard')} />,
     audit: <JournalAudit profile={profile} onBack={() => setPage('dashboard')} />,
     correlation: <CorrelationVentes profile={profile} onBack={() => setPage('dashboard')} />,
@@ -368,6 +375,15 @@ export default function Dashboard({ session, profile, agence }) {
   className="w-full bg-indigo-700 text-white font-black py-4 rounded-2xl text-sm">
   📈 Corrélation visites/ventes
 </button>
+<button onClick={() => setPage('onboarding')}
+  className="w-full bg-teal-900 text-white font-black py-4 rounded-2xl text-sm">
+  🚀 Guide de configuration
+</button>
+<button onClick={() => setPage('pdf')}
+  className="w-full bg-red-700 text-white font-black py-4 rounded-2xl text-sm">
+  📄 Export PDF
+</button>
+
             <button onClick={() => setPage('statistiques')} className="w-full bg-purple-600 text-white font-black py-4 rounded-2xl text-sm">📊 Statistiques</button>
             <button onClick={() => setPage('stats-avancees')} className="w-full bg-indigo-600 text-white font-black py-4 rounded-2xl text-sm">📈 Statistiques avancées</button>
             <button onClick={() => setPage('rapports')} className="w-full bg-green-600 text-white font-black py-4 rounded-2xl text-sm">📥 Rapports & Export</button>
@@ -397,10 +413,18 @@ export default function Dashboard({ session, profile, agence }) {
   className="w-full bg-slate-700 text-white font-black py-4 rounded-2xl text-sm">
   📋 Journal d'audit
 </button>
-<button onClick={() => setPage('correlation')}
+<button onClick={() => setPage('appareils')}
   className="w-full bg-indigo-700 text-white font-black py-4 rounded-2xl text-sm">
   
   📱 Appareils autorisés
+</button>
+<button onClick={() => setPage('marques')}
+  className="w-full bg-pink-600 text-white font-black py-4 rounded-2xl text-sm">
+  🏷️ Marques
+</button>
+<button onClick={() => setPage('recherche')}
+  className="bg-slate-700 text-white px-3 py-2 rounded-xl font-bold text-xs">
+  🔍Recherche globale
 </button>
             <button onClick={() => setPage('campagnes')} className="w-full bg-orange-600 text-white font-black py-4 rounded-2xl text-sm">🎯 Campagnes</button>
             <button onClick={() => setPage('professionnels')} className="w-full bg-indigo-700 text-white font-black py-4 rounded-2xl text-sm">👨‍⚕️ Professionnels de santé</button>
