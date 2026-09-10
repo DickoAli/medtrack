@@ -55,7 +55,7 @@ export default function DelegueApp({ session, profile }) {
           .eq('statut_produit', 'Normal')
           .order('nom'),
         supabase.from('delegate_portfolios')
-          .select('*, healthcare_professionals(id, nom, prenom, potential, specialite, establishments(nom)), campaigns(nom)')
+          .select('*, commercial_targets(priority, healthcare_professionals(id, nom, prenom, specialite, establishments(nom))), campaigns(nom)')
           .eq('delegate_id', profile.delegate_id)
           .eq('is_active', true),
         supabase.from('visit_plans')
@@ -291,8 +291,8 @@ export default function DelegueApp({ session, profile }) {
   }
 
   if (loading) return (
-    <div className="min-h-screen bg-blue-950 flex items-center justify-center">
-      <p className="text-teal-400 font-bold">Chargement...</p>
+    <div className="min-h-screen bg-[#172B4D] flex items-center justify-center">
+      <p className="text-[#5FB89B] font-medium">Chargement...</p>
     </div>
   )
 
@@ -316,62 +316,72 @@ export default function DelegueApp({ session, profile }) {
   const TYPES_LIEU = ['CSRef', 'CSCom', 'Clinique', 'Cabinet de santé', 'Hôpital', 'Pharmacie', 'Autre']
   const TITRES = ['Médecin généraliste', 'Spécialiste', 'Pharmacien', 'Infirmier', 'Directeur', 'Autre']
   const POTENTIAL_COLORS = {
-    A: 'bg-rose-100 text-rose-600',
-    B: 'bg-amber-100 text-amber-600',
-    C: 'bg-slate-100 text-slate-500'
+    A: 'bg-[#FDE8E8] text-[#DC2626]',
+    B: 'bg-[#FEF3E2] text-[#B45309]',
+    C: 'bg-[#EEF1F4] text-[#667085]'
   }
-
+  const STATUT_COLORS = {
+    'Réalisée': 'bg-[#E7F5EF] text-[#087F5B]',
+    'Planifiée': 'bg-[#FEF3E2] text-[#B45309]',
+    'Non aboutie': 'bg-[#FDE8E8] text-[#DC2626]'
+  }
+  const CONFIDENCE_COLORS = {
+    validated: 'bg-[#E9F9EE] text-[#16A34A]',
+    to_check: 'bg-[#FEF3E2] text-[#B45309]',
+    suspicious: 'bg-[#FDE8E8] text-[#DC2626]'
+  }
   const TYPE_ICONS = {
     pdf: '📄', image: '🖼️', video: '🎥', presentation: '📊', document: '📝'
   }
   const TYPE_COLORS_SUPPORT = {
-    pdf: 'bg-red-100 text-red-600', image: 'bg-blue-100 text-blue-600',
-    video: 'bg-purple-100 text-purple-600', presentation: 'bg-amber-100 text-amber-600',
-    document: 'bg-slate-100 text-slate-500'
+    pdf: 'bg-[#FDE8E8] text-[#DC2626]',
+    image: 'bg-[#E8F0FE] text-[#2563EB]',
+    video: 'bg-[#E7F5EF] text-[#087F5B]',
+    presentation: 'bg-[#FEF3E2] text-[#B45309]',
+    document: 'bg-[#EEF1F4] text-[#667085]'
   }
 
   if (page === 'extranet') return <Extranet profile={profile} onBack={() => setPage('accueil')} />
 
   return (
-    <div className="min-h-screen bg-slate-100">
+    <div className="min-h-screen bg-[#F4F7F9]">
       {/* Header */}
-      <div className="bg-blue-950 px-6 py-4 flex items-center justify-between">
+      <div className="bg-[#172B4D] px-5 py-4 flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <span className="text-2xl">⚕</span>
+          <span className="text-xl text-[#087F5B]">⚕</span>
           <div>
-            <h1 className="text-white font-black text-lg">MedTrack</h1>
-            <p className="text-teal-400 text-xs font-bold uppercase tracking-wider">
+            <h1 className="text-white font-semibold text-base">MedTrack</h1>
+            <p className="text-[#9AA9C2] text-xs font-medium uppercase tracking-wide">
               {profile.delegates?.prenom} {profile.delegates?.nom}
             </p>
           </div>
         </div>
         <div className="flex items-center gap-3">
-          <div className={`w-2 h-2 rounded-full ${position ? 'bg-teal-400' : 'bg-red-400'}`} />
+          <div className={`w-2 h-2 rounded-full ${position ? 'bg-[#16A34A]' : 'bg-[#DC2626]'}`} />
           <button onClick={() => setShowProfil(true)}
-            className="w-8 h-8 rounded-full bg-teal-400 flex items-center justify-center font-black text-blue-950 text-sm">
+            className="w-8 h-8 rounded-full bg-[#087F5B] flex items-center justify-center font-semibold text-white text-sm">
             {profile.delegates?.prenom?.[0]}{profile.delegates?.nom?.[0]}
           </button>
           <button onClick={() => supabase.auth.signOut()}
-            className="bg-red-500 text-white px-3 py-1.5 rounded-xl font-bold text-xs">
+            className="border border-[#3B4A63] text-[#C7D0E0] px-3 py-1.5 rounded-lg font-medium text-xs">
             Quitter
           </button>
         </div>
       </div>
 
-      {/* GPS */}
-      <div className={`px-6 py-2 text-xs font-bold flex items-center gap-2 ${position ? 'bg-teal-500' : 'bg-amber-500'}`}>
-        <span>{position ? '📍' : '⚠️'}</span>
+      {/* GPS status */}
+      <div className={`px-5 py-2 text-xs font-medium flex items-center gap-2 ${position ? 'bg-[#087F5B]' : 'bg-[#F59E0B]'}`}>
         <span className="text-white">
-          {position ? `GPS actif · ${position.lat.toFixed(4)}, ${position.lng.toFixed(4)}` : 'GPS en attente'}
+          {position ? `📍 GPS actif · ${position.lat.toFixed(4)}, ${position.lng.toFixed(4)}` : '⚠️ GPS en attente'}
         </span>
       </div>
 
       {/* Hors ligne */}
       {!navigator.onLine && (
-        <div className="bg-rose-500 px-6 py-2 text-xs font-bold flex items-center justify-between">
-          <span>📵 Hors ligne</span>
+        <div className="bg-[#DC2626] px-5 py-2 text-xs font-medium flex items-center justify-between">
+          <span className="text-white">📵 Hors ligne</span>
           {offlineStats && (
-            <span className="text-white text-xs">
+            <span className="text-white text-xs opacity-90">
               {offlineStats.agenda} RDV · {offlineStats.portfolio} cibles · {offlineStats.produits} produits en cache
             </span>
           )}
@@ -380,28 +390,30 @@ export default function DelegueApp({ session, profile }) {
 
       {/* Sync */}
       {pendingCount > 0 && navigator.onLine && (
-        <div className="bg-amber-500 px-6 py-2 text-xs font-bold flex items-center justify-between">
+        <div className="bg-[#F59E0B] px-5 py-2 text-xs font-medium flex items-center justify-between">
           <span className="text-white">⏳ {pendingCount} visite(s) en attente</span>
           <button onClick={syncPendingVisites} disabled={syncing}
-            className="bg-white text-amber-600 px-3 py-1 rounded-lg text-xs font-black">
+            className="bg-white text-[#B45309] px-3 py-1 rounded-lg text-xs font-semibold">
             {syncing ? '...' : 'Sync'}
           </button>
         </div>
       )}
 
-      {/* Nav */}
-      <div className="bg-white flex border-b border-slate-200">
+      {/* Nav tabs */}
+      <div className="bg-white flex border-b border-[#DDE4EA]">
         {[
-          { id: 'accueil', label: '🏠Accueil' },
+          { id: 'accueil', label: '🏠' },
           { id: 'agenda', label: '📅 Agenda' },
           { id: 'portefeuille', label: '👜 Cibles' },
           { id: 'visite', label: '+ Visite' },
-          { id: 'historique', label: '📋Historique' },
-          { id: 'supports', label: '📚 Supports' },
-          { id: 'extranet', label: '🌐Extranet' },
+          { id: 'historique', label: '📋' },
+          { id: 'supports', label: '📚' },
+          { id: 'extranet', label: '🌐' },
         ].map(n => (
           <button key={n.id} onClick={() => { setPage(n.id); setSuccess(false) }}
-            className={`flex-1 py-3 text-xs font-black transition-colors ${page === n.id ? 'text-teal-500 border-b-2 border-teal-500' : 'text-slate-400'}`}>
+            className={`flex-1 py-3 text-xs font-semibold transition-colors ${
+              page === n.id ? 'text-[#087F5B] border-b-2 border-[#087F5B]' : 'text-[#667085]'
+            }`}>
             {n.label}
           </button>
         ))}
@@ -409,40 +421,40 @@ export default function DelegueApp({ session, profile }) {
 
       {/* ACCUEIL */}
       {page === 'accueil' && (
-        <div className="p-6 flex flex-col gap-4">
-          <div className="grid grid-cols-3 gap-3">
-            <div className="bg-white rounded-2xl p-4 border-l-4 border-teal-400 text-center">
-              <p className="text-2xl font-black text-blue-950">{visites.length}</p>
-              <p className="text-xs text-slate-500 font-bold mt-1">Total</p>
+        <div className="p-5 flex flex-col gap-4">
+          <div className="grid grid-cols-3 gap-2">
+            <div className="bg-white rounded-xl p-3 border border-[#DDE4EA] text-center">
+              <p className="text-xl font-semibold text-[#172B4D]">{visites.length}</p>
+              <p className="text-xs text-[#667085] mt-1">Total</p>
             </div>
-            <div className="bg-white rounded-2xl p-4 border-l-4 border-amber-400 text-center">
-              <p className="text-2xl font-black text-blue-950">{todayVisites.length}</p>
-              <p className="text-xs text-slate-500 font-bold mt-1">Aujourd'hui</p>
+            <div className="bg-white rounded-xl p-3 border border-[#DDE4EA] text-center">
+              <p className="text-xl font-semibold text-[#172B4D]">{todayVisites.length}</p>
+              <p className="text-xs text-[#667085] mt-1">Aujourd'hui</p>
             </div>
-            <div className="bg-white rounded-2xl p-4 border-l-4 border-purple-400 text-center">
-              <p className="text-2xl font-black text-blue-950">{portfolio.length}</p>
-              <p className="text-xs text-slate-500 font-bold mt-1">Cibles</p>
+            <div className="bg-white rounded-xl p-3 border border-[#DDE4EA] text-center">
+              <p className="text-xl font-semibold text-[#172B4D]">{portfolio.length}</p>
+              <p className="text-xs text-[#667085] mt-1">Cibles</p>
             </div>
           </div>
 
           {todayAgenda.length > 0 && (
             <div>
-              <p className="text-xs text-amber-500 font-black uppercase tracking-wider mb-2">
-                📅 Visites prévues aujourd'hui ({todayAgenda.length})
+              <p className="text-xs text-[#B45309] font-semibold uppercase tracking-wide mb-2">
+                Visites prévues aujourd'hui ({todayAgenda.length})
               </p>
               <div className="flex flex-col gap-2">
                 {todayAgenda.map(a => (
-                  <div key={a.id} className="bg-white rounded-2xl p-4 border-l-4 border-amber-400">
+                  <div key={a.id} className="bg-white rounded-xl p-4 border-l-2 border-[#F59E0B]">
                     <div className="flex items-center justify-between">
                       <div>
-                        <p className="font-black text-blue-950 text-sm">
+                        <p className="font-semibold text-[#172B4D] text-sm">
                           {a.healthcare_professionals?.prenom} {a.healthcare_professionals?.nom}
                         </p>
-                        {a.establishments && <p className="text-xs text-slate-400">🏥 {a.establishments.nom}</p>}
-                        {a.planned_time && <p className="text-xs text-amber-500 font-bold">⏰ {a.planned_time.slice(0, 5)}</p>}
+                        {a.establishments && <p className="text-xs text-[#667085]">🏥 {a.establishments.nom}</p>}
+                        {a.planned_time && <p className="text-xs text-[#B45309] font-medium">⏰ {a.planned_time.slice(0, 5)}</p>}
                       </div>
                       <button onClick={() => startVisiteFromPlan(a)}
-                        className="bg-teal-400 text-blue-950 px-3 py-2 rounded-xl text-xs font-black">
+                        className="bg-[#087F5B] text-white px-3 py-2 rounded-lg text-xs font-semibold">
                         Démarrer
                       </button>
                     </div>
@@ -453,25 +465,25 @@ export default function DelegueApp({ session, profile }) {
           )}
 
           <button onClick={() => setPage('visite')}
-            className="w-full bg-teal-400 text-blue-950 font-black py-5 rounded-2xl text-base">
+            className="w-full bg-[#087F5B] text-white font-semibold py-4 rounded-xl text-sm">
             + Enregistrer une visite
           </button>
 
           {todayVisites.length > 0 && (
             <div>
-              <p className="text-xs text-slate-400 font-bold uppercase tracking-wider mb-2">
+              <p className="text-xs text-[#667085] font-semibold uppercase tracking-wide mb-2">
                 Visites réalisées aujourd'hui
               </p>
               <div className="flex flex-col gap-2">
                 {todayVisites.map(v => (
-                  <div key={v.id} className="bg-white rounded-2xl p-4">
+                  <div key={v.id} className="bg-white rounded-xl p-4 border border-[#DDE4EA]">
                     <div className="flex items-center justify-between">
-                      <p className="font-bold text-blue-950 text-sm">{v.nom_contact || '—'}</p>
-                      <span className={`text-xs font-bold px-2 py-1 rounded-full ${
-                        v.statut === 'Réalisée' ? 'bg-teal-100 text-teal-600' : 'bg-rose-100 text-rose-500'
-                      }`}>{v.statut}</span>
+                      <p className="font-medium text-[#172B4D] text-sm">{v.nom_contact || '—'}</p>
+                      <span className={`text-xs font-semibold px-2 py-1 rounded-full ${STATUT_COLORS[v.statut] || 'bg-[#EEF1F4] text-[#667085]'}`}>
+                        {v.statut}
+                      </span>
                     </div>
-                    <p className="text-xs text-slate-400 mt-1">{v.type_lieu} · {v.produit}</p>
+                    <p className="text-xs text-[#667085] mt-1">{v.type_lieu} · {v.produit}</p>
                   </div>
                 ))}
               </div>
@@ -482,36 +494,36 @@ export default function DelegueApp({ session, profile }) {
 
       {/* AGENDA */}
       {page === 'agenda' && (
-        <div className="p-6 flex flex-col gap-4 pb-10">
-          <p className="text-xs font-black text-blue-950 uppercase tracking-wider">
+        <div className="p-5 flex flex-col gap-4 pb-10">
+          <p className="text-xs font-semibold text-[#172B4D] uppercase tracking-wide">
             {agenda.length} visite{agenda.length > 1 ? 's' : ''} planifiée{agenda.length > 1 ? 's' : ''}
           </p>
           {agenda.length === 0 ? (
-            <div className="bg-white rounded-2xl p-8 text-center">
-              <p className="text-4xl mb-3">📅</p>
-              <p className="text-slate-400 text-sm">Aucune visite planifiée</p>
+            <div className="bg-white rounded-xl p-8 text-center border border-[#DDE4EA]">
+              <p className="text-3xl mb-2">📅</p>
+              <p className="text-[#667085] text-sm">Aucune visite planifiée</p>
             </div>
           ) : (
             <>
               {todayAgenda.length > 0 && (
                 <div>
-                  <p className="text-xs text-amber-500 font-black uppercase tracking-wider mb-2">Aujourd'hui</p>
+                  <p className="text-xs text-[#B45309] font-semibold uppercase tracking-wide mb-2">Aujourd'hui</p>
                   <div className="flex flex-col gap-3">
                     {todayAgenda.map(a => (
-                      <div key={a.id} className="bg-white rounded-2xl p-4 border-l-4 border-amber-400">
+                      <div key={a.id} className="bg-white rounded-xl p-4 border-l-2 border-[#F59E0B]">
                         <div className="flex items-start justify-between gap-3">
                           <div className="flex-1">
-                            <p className="font-black text-blue-950 text-sm">
+                            <p className="font-semibold text-[#172B4D] text-sm">
                               {a.healthcare_professionals?.prenom} {a.healthcare_professionals?.nom}
                             </p>
-                            {a.establishments && <p className="text-xs text-slate-400">🏥 {a.establishments.nom}</p>}
-                            {a.campaigns && <p className="text-xs text-slate-400">🎯 {a.campaigns.nom}</p>}
-                            {a.planned_time && <p className="text-xs text-amber-500 font-bold">⏰ {a.planned_time.slice(0, 5)}</p>}
-                            {a.planned_duration && <p className="text-xs text-slate-400">⏱ {a.planned_duration} min</p>}
-                            {a.notes && <p className="text-xs text-slate-400 italic">{a.notes}</p>}
+                            {a.establishments && <p className="text-xs text-[#667085]">🏥 {a.establishments.nom}</p>}
+                            {a.campaigns && <p className="text-xs text-[#667085]">🎯 {a.campaigns.nom}</p>}
+                            {a.planned_time && <p className="text-xs text-[#B45309] font-medium">⏰ {a.planned_time.slice(0, 5)}</p>}
+                            {a.planned_duration && <p className="text-xs text-[#667085]">⏱ {a.planned_duration} min</p>}
+                            {a.notes && <p className="text-xs text-[#667085] italic">{a.notes}</p>}
                           </div>
                           <button onClick={() => startVisiteFromPlan(a)}
-                            className="bg-teal-400 text-blue-950 px-3 py-2 rounded-xl text-xs font-black flex-shrink-0">
+                            className="bg-[#087F5B] text-white px-3 py-2 rounded-lg text-xs font-semibold flex-shrink-0">
                             Démarrer
                           </button>
                         </div>
@@ -522,18 +534,18 @@ export default function DelegueApp({ session, profile }) {
               )}
               {upcomingAgenda.length > 0 && (
                 <div>
-                  <p className="text-xs text-teal-500 font-black uppercase tracking-wider mb-2">À venir</p>
+                  <p className="text-xs text-[#087F5B] font-semibold uppercase tracking-wide mb-2">À venir</p>
                   <div className="flex flex-col gap-3">
                     {upcomingAgenda.map(a => (
-                      <div key={a.id} className="bg-white rounded-2xl p-4 border-l-4 border-teal-400">
-                        <p className="font-black text-blue-950 text-sm">
+                      <div key={a.id} className="bg-white rounded-xl p-4 border border-[#DDE4EA]">
+                        <p className="font-semibold text-[#172B4D] text-sm">
                           {a.healthcare_professionals?.prenom} {a.healthcare_professionals?.nom}
                         </p>
-                        <p className="text-xs text-teal-500 font-bold">
+                        <p className="text-xs text-[#087F5B] font-medium">
                           📅 {new Date(a.planned_date).toLocaleDateString('fr-FR')}
                           {a.planned_time && ` à ${a.planned_time.slice(0, 5)}`}
                         </p>
-                        {a.establishments && <p className="text-xs text-slate-400">🏥 {a.establishments.nom}</p>}
+                        {a.establishments && <p className="text-xs text-[#667085]">🏥 {a.establishments.nom}</p>}
                       </div>
                     ))}
                   </div>
@@ -546,38 +558,36 @@ export default function DelegueApp({ session, profile }) {
 
       {/* PORTEFEUILLE */}
       {page === 'portefeuille' && (
-        <div className="p-6 flex flex-col gap-3 pb-10">
-          <p className="text-xs font-black text-blue-950 uppercase tracking-wider">
+        <div className="p-5 flex flex-col gap-3 pb-10">
+          <p className="text-xs font-semibold text-[#172B4D] uppercase tracking-wide">
             {portfolio.length} cible{portfolio.length > 1 ? 's' : ''} dans mon portefeuille
           </p>
           {portfolio.length === 0 ? (
-            <div className="bg-white rounded-2xl p-8 text-center">
-              <p className="text-4xl mb-3">👜</p>
-              <p className="text-slate-400 text-sm">Aucune cible assignée</p>
-              <p className="text-slate-300 text-xs mt-1">Votre manager configurera votre portefeuille</p>
+            <div className="bg-white rounded-xl p-8 text-center border border-[#DDE4EA]">
+              <p className="text-3xl mb-2">👜</p>
+              <p className="text-[#667085] text-sm">Aucune cible assignée</p>
+              <p className="text-[#98A2B3] text-xs mt-1">Votre manager configurera votre portefeuille</p>
             </div>
           ) : (
             portfolio.map(p => {
-              const pro = p.healthcare_professionals
+              const pro = p.commercial_targets?.healthcare_professionals
+              if (!pro) return null
               return (
-                <div key={p.id} className={`bg-white rounded-2xl p-4 border-l-4 ${
-                  pro.potential === 'A' ? 'border-rose-400' :
-                  pro.potential === 'B' ? 'border-amber-400' : 'border-slate-200'
-                }`}>
+                <div key={p.id} className="bg-white rounded-xl p-4 border border-[#DDE4EA]">
                   <div className="flex items-start gap-3">
-                    <span className={`text-xs font-black px-2 py-1 rounded-full flex-shrink-0 ${POTENTIAL_COLORS[pro.potential]}`}>
-                      {pro.potential}
+                    <span className={`text-xs font-semibold px-2 py-1 rounded-full flex-shrink-0 ${POTENTIAL_COLORS[p.priority]}`}>
+                      {p.priority}
                     </span>
                     <div className="flex-1 min-w-0">
-                      <p className="font-black text-blue-950 text-sm">{pro.prenom} {pro.nom}</p>
-                      {pro.specialite && <p className="text-xs text-slate-500">{pro.specialite}</p>}
-                      {pro.establishments && <p className="text-xs text-slate-400">🏥 {pro.establishments.nom}</p>}
-                      {p.campaigns && <p className="text-xs text-slate-400">🎯 {p.campaigns.nom}</p>}
+                      <p className="font-semibold text-[#172B4D] text-sm">{pro.prenom} {pro.nom}</p>
+                      {pro.specialite && <p className="text-xs text-[#667085]">{pro.specialite}</p>}
+                      {pro.establishments && <p className="text-xs text-[#667085]">🏥 {pro.establishments.nom}</p>}
+                      {p.campaigns && <p className="text-xs text-[#667085]">🎯 {p.campaigns.nom}</p>}
                       <div className="flex gap-2 mt-1">
-                        <span className="text-xs bg-blue-50 text-blue-600 font-bold px-2 py-0.5 rounded-full">
+                        <span className="text-xs bg-[#E8F0FE] text-[#2563EB] font-medium px-2 py-0.5 rounded-full">
                           {p.visit_frequency}x/mois
                         </span>
-                        <span className="text-xs bg-slate-50 text-slate-500 font-bold px-2 py-0.5 rounded-full">
+                        <span className="text-xs bg-[#EEF1F4] text-[#667085] font-medium px-2 py-0.5 rounded-full">
                           {p.visits_done || 0} visite{(p.visits_done || 0) > 1 ? 's' : ''} réalisée{(p.visits_done || 0) > 1 ? 's' : ''}
                         </span>
                       </div>
@@ -590,7 +600,7 @@ export default function DelegueApp({ session, profile }) {
                         campaign_id: p.campaign_id || ''
                       }))
                       setPage('visite')
-                    }} className="bg-teal-400 text-blue-950 px-3 py-2 rounded-xl text-xs font-black flex-shrink-0">
+                    }} className="bg-[#087F5B] text-white px-3 py-2 rounded-lg text-xs font-semibold flex-shrink-0">
                       Visiter
                     </button>
                   </div>
@@ -603,23 +613,23 @@ export default function DelegueApp({ session, profile }) {
 
       {/* NOUVELLE VISITE */}
       {page === 'visite' && (
-        <div className="p-6 flex flex-col gap-4 pb-10">
+        <div className="p-5 flex flex-col gap-4 pb-10">
           {success && (
-            <div className="bg-teal-50 border border-teal-200 rounded-2xl p-4 text-center">
-              <p className="text-teal-600 font-black">✅ Visite enregistrée !</p>
+            <div className="bg-[#E7F5EF] border border-[#087F5B]/20 rounded-xl p-4 text-center">
+              <p className="text-[#087F5B] font-semibold">✅ Visite enregistrée !</p>
             </div>
           )}
 
           {form.visit_plan_id && (
-            <div className="bg-blue-50 border border-blue-200 rounded-2xl p-3">
-              <p className="text-xs text-blue-700 font-bold">📅 Visite liée à votre agenda</p>
+            <div className="bg-[#E8F0FE] border border-[#2563EB]/20 rounded-xl p-3">
+              <p className="text-xs text-[#2563EB] font-medium">📅 Visite liée à votre agenda</p>
             </div>
           )}
 
           <div>
-            <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Type de visite</label>
+            <label className="text-xs font-medium text-[#667085] uppercase tracking-wide">Type de visite</label>
             <select value={form.type} onChange={e => set('type', e.target.value)}
-              className="w-full mt-1 p-3 rounded-xl border border-slate-200 bg-white text-sm">
+              className="w-full mt-1 p-3 rounded-lg border border-[#DDE4EA] bg-white text-sm text-[#172B4D]">
               <option value="immediate">Visite immédiate</option>
               <option value="planifiee">Planifier pour plus tard</option>
             </select>
@@ -627,49 +637,49 @@ export default function DelegueApp({ session, profile }) {
 
           {form.type === 'planifiee' && (
             <div>
-              <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Date et heure prévue</label>
+              <label className="text-xs font-medium text-[#667085] uppercase tracking-wide">Date et heure prévue</label>
               <input type="datetime-local" value={form.date_prevue} onChange={e => set('date_prevue', e.target.value)}
-                className="w-full mt-1 p-3 rounded-xl border border-slate-200 bg-white text-sm" />
+                className="w-full mt-1 p-3 rounded-lg border border-[#DDE4EA] bg-white text-sm text-[#172B4D]" />
             </div>
           )}
 
           <div>
-            <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Type de lieu *</label>
+            <label className="text-xs font-medium text-[#667085] uppercase tracking-wide">Type de lieu *</label>
             <select value={form.type_lieu} onChange={e => set('type_lieu', e.target.value)}
-              className="w-full mt-1 p-3 rounded-xl border border-slate-200 bg-white text-sm">
+              className="w-full mt-1 p-3 rounded-lg border border-[#DDE4EA] bg-white text-sm text-[#172B4D]">
               <option value="">Sélectionner le lieu</option>
               {TYPES_LIEU.map(t => <option key={t}>{t}</option>)}
             </select>
           </div>
 
           <div>
-            <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Nom du contact *</label>
+            <label className="text-xs font-medium text-[#667085] uppercase tracking-wide">Nom du contact *</label>
             <input value={form.nom_contact} onChange={e => set('nom_contact', e.target.value)}
-              className="w-full mt-1 p-3 rounded-xl border border-slate-200 bg-white text-sm"
+              className="w-full mt-1 p-3 rounded-lg border border-[#DDE4EA] bg-white text-sm text-[#172B4D]"
               placeholder="Nom et prénom" />
           </div>
 
           <div>
-            <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Titre / Fonction</label>
+            <label className="text-xs font-medium text-[#667085] uppercase tracking-wide">Titre / Fonction</label>
             <select value={form.titre_contact} onChange={e => set('titre_contact', e.target.value)}
-              className="w-full mt-1 p-3 rounded-xl border border-slate-200 bg-white text-sm">
+              className="w-full mt-1 p-3 rounded-lg border border-[#DDE4EA] bg-white text-sm text-[#172B4D]">
               <option value="">Sélectionner</option>
               {TITRES.map(t => <option key={t}>{t}</option>)}
             </select>
           </div>
 
           <div>
-            <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Téléphone</label>
+            <label className="text-xs font-medium text-[#667085] uppercase tracking-wide">Téléphone</label>
             <input type="tel" value={form.telephone_contact} onChange={e => set('telephone_contact', e.target.value)}
-              className="w-full mt-1 p-3 rounded-xl border border-slate-200 bg-white text-sm"
+              className="w-full mt-1 p-3 rounded-lg border border-[#DDE4EA] bg-white text-sm text-[#172B4D]"
               placeholder="00223XXXXXXXX" />
           </div>
 
           <div>
-            <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Produits présentés *</label>
+            <label className="text-xs font-medium text-[#667085] uppercase tracking-wide">Produits présentés *</label>
             <div className="mt-2 flex flex-col gap-2">
               <select onChange={e => { if (e.target.value) toggleProduit(e.target.value) }}
-                className="w-full p-3 rounded-xl border border-slate-200 bg-white text-sm" value="">
+                className="w-full p-3 rounded-lg border border-[#DDE4EA] bg-white text-sm text-[#172B4D]" value="">
                 <option value="">Sélectionner un produit...</option>
                 {produits.filter(p => !form.produits_ids.includes(p.id)).map(p => (
                   <option key={p.id} value={p.id}>{p.nom}</option>
@@ -680,9 +690,9 @@ export default function DelegueApp({ session, profile }) {
                   {form.produits_ids.map(id => {
                     const p = produits.find(x => x.id === id)
                     return p ? (
-                      <div key={id} className="flex items-center gap-1 bg-teal-400 text-blue-950 px-3 py-1.5 rounded-xl text-xs font-bold">
+                      <div key={id} className="flex items-center gap-1 bg-[#087F5B] text-white px-3 py-1.5 rounded-lg text-xs font-medium">
                         <span>{p.nom}</span>
-                        <button onClick={() => toggleProduit(id)} className="ml-1 font-black">✕</button>
+                        <button onClick={() => toggleProduit(id)} className="ml-1 font-semibold">✕</button>
                       </div>
                     ) : null
                   })}
@@ -693,9 +703,9 @@ export default function DelegueApp({ session, profile }) {
 
           {form.type === 'immediate' && (
             <div>
-              <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Statut</label>
+              <label className="text-xs font-medium text-[#667085] uppercase tracking-wide">Statut</label>
               <select value={form.statut} onChange={e => set('statut', e.target.value)}
-                className="w-full mt-1 p-3 rounded-xl border border-slate-200 bg-white text-sm">
+                className="w-full mt-1 p-3 rounded-lg border border-[#DDE4EA] bg-white text-sm text-[#172B4D]">
                 <option>Réalisée</option>
                 <option>Non aboutie</option>
               </select>
@@ -703,15 +713,15 @@ export default function DelegueApp({ session, profile }) {
           )}
 
           <div>
-            <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Note / Compte-rendu</label>
+            <label className="text-xs font-medium text-[#667085] uppercase tracking-wide">Note / Compte-rendu</label>
             <textarea value={form.note} onChange={e => set('note', e.target.value)}
-              className="w-full mt-1 p-3 rounded-xl border border-slate-200 bg-white text-sm h-24 resize-none"
+              className="w-full mt-1 p-3 rounded-lg border border-[#DDE4EA] bg-white text-sm text-[#172B4D] h-24 resize-none"
               placeholder="Observations, prochaines étapes..." />
           </div>
 
           {/* Photo */}
           <div>
-            <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Photo de la visite</label>
+            <label className="text-xs font-medium text-[#667085] uppercase tracking-wide">Photo de la visite</label>
             <input ref={photoRef} type="file" accept="image/*" capture="environment"
               onChange={e => {
                 const file = e.target.files[0]
@@ -723,28 +733,28 @@ export default function DelegueApp({ session, profile }) {
               className="hidden" />
             {form.photoPreview ? (
               <div className="mt-2 relative">
-                <img src={form.photoPreview} alt="Preview" className="w-full h-40 object-cover rounded-xl" />
+                <img src={form.photoPreview} alt="Preview" className="w-full h-40 object-cover rounded-lg" />
                 <button onClick={() => { photoFileRef.current = null; set('photoPreview', null) }}
-                  className="absolute top-2 right-2 bg-rose-500 text-white px-2 py-1 rounded-lg text-xs font-black">✕</button>
+                  className="absolute top-2 right-2 bg-[#DC2626] text-white px-2 py-1 rounded-lg text-xs font-semibold">✕</button>
               </div>
             ) : (
               <button onClick={() => photoRef.current.click()}
-                className="w-full mt-1 border-2 border-dashed border-slate-200 rounded-xl p-4 text-center text-slate-400 text-sm">
+                className="w-full mt-1 border-2 border-dashed border-[#DDE4EA] rounded-lg p-4 text-center text-[#667085] text-sm">
                 📷 Prendre une photo
               </button>
             )}
           </div>
 
           {/* GPS */}
-          <div className={`rounded-xl p-3 flex items-center gap-2 ${position ? 'bg-teal-50 border border-teal-200' : 'bg-amber-50 border border-amber-200'}`}>
+          <div className={`rounded-lg p-3 flex items-center gap-2 border ${position ? 'bg-[#E7F5EF] border-[#087F5B]/20' : 'bg-[#FEF3E2] border-[#F59E0B]/30'}`}>
             <span>{position ? '📍' : '⚠️'}</span>
-            <p className="text-xs font-bold text-slate-600">
+            <p className="text-xs font-medium text-[#667085]">
               {position ? `GPS actif · ${position.lat.toFixed(5)}, ${position.lng.toFixed(5)}` : 'GPS non disponible'}
             </p>
           </div>
 
           <button onClick={handleSave} disabled={saving}
-            className="w-full bg-teal-400 text-blue-950 font-black py-4 rounded-2xl text-sm">
+            className="w-full bg-[#087F5B] text-white font-semibold py-4 rounded-xl text-sm">
             {saving ? 'Enregistrement...' : 'Enregistrer la visite'}
           </button>
         </div>
@@ -752,44 +762,37 @@ export default function DelegueApp({ session, profile }) {
 
       {/* HISTORIQUE */}
       {page === 'historique' && (
-        <div className="p-6 flex flex-col gap-3 pb-10">
-          <p className="text-xs text-slate-400 font-bold uppercase tracking-wider">{visites.length} visites au total</p>
+        <div className="p-5 flex flex-col gap-3 pb-10">
+          <p className="text-xs text-[#667085] font-semibold uppercase tracking-wide">{visites.length} visites au total</p>
           {visites.length === 0 ? (
-            <div className="bg-white rounded-2xl p-8 text-center">
-              <p className="text-slate-400 text-sm">Aucune visite enregistrée</p>
+            <div className="bg-white rounded-xl p-8 text-center border border-[#DDE4EA]">
+              <p className="text-[#667085] text-sm">Aucune visite enregistrée</p>
             </div>
           ) : (
             visites.map(v => (
-              <div key={v.id} className={`bg-white rounded-2xl p-4 border-l-4 ${
-                v.statut === 'Réalisée' ? 'border-teal-400' :
-                v.statut === 'Planifiée' ? 'border-amber-400' : 'border-rose-400'
-              }`}>
+              <div key={v.id} className="bg-white rounded-xl p-4 border border-[#DDE4EA]">
                 <div className="flex items-center justify-between mb-1">
-                  <p className="font-bold text-blue-950 text-sm">{v.nom_contact || '—'}</p>
-                  <span className={`text-xs font-bold px-2 py-1 rounded-full ${
-                    v.statut === 'Réalisée' ? 'bg-teal-100 text-teal-600' :
-                    v.statut === 'Planifiée' ? 'bg-amber-100 text-amber-600' :
-                    'bg-rose-100 text-rose-500'
-                  }`}>{v.statut}</span>
+                  <p className="font-medium text-[#172B4D] text-sm">{v.nom_contact || '—'}</p>
+                  <span className={`text-xs font-semibold px-2 py-1 rounded-full ${STATUT_COLORS[v.statut] || 'bg-[#EEF1F4] text-[#667085]'}`}>
+                    {v.statut}
+                  </span>
                 </div>
-                {v.titre_contact && <p className="text-xs text-slate-400">{v.titre_contact}</p>}
-                {v.type_lieu && <p className="text-xs text-slate-400">{v.type_lieu}</p>}
-                {v.produit && <p className="text-xs text-teal-600 font-bold mt-1">💊 {v.produit}</p>}
+                {v.titre_contact && <p className="text-xs text-[#667085]">{v.titre_contact}</p>}
+                {v.type_lieu && <p className="text-xs text-[#667085]">{v.type_lieu}</p>}
+                {v.produit && <p className="text-xs text-[#087F5B] font-medium mt-1">💊 {v.produit}</p>}
                 {v.photo_url && (
-                  <img src={v.photo_url} alt="Photo" className="w-full h-32 object-cover rounded-xl mt-2 cursor-pointer"
+                  <img src={v.photo_url} alt="Photo" className="w-full h-32 object-cover rounded-lg mt-2 cursor-pointer"
                     onClick={() => window.open(v.photo_url, '_blank')} />
                 )}
-                {v.note && <p className="text-xs text-slate-500 italic mt-1">{v.note}</p>}
+                {v.note && <p className="text-xs text-[#667085] italic mt-1">{v.note}</p>}
                 {v.confidence_score !== null && v.confidence_score !== undefined && (
-                  <span className={`text-xs font-black px-2 py-0.5 rounded-full mt-1 inline-block ${
-                    v.confidence_status === 'validated' ? 'bg-green-100 text-green-600' :
-                    v.confidence_status === 'to_check' ? 'bg-amber-100 text-amber-600' :
-                    'bg-rose-100 text-rose-500'
-                  }`}>{v.confidence_score}pts</span>
+                  <span className={`text-xs font-semibold px-2 py-0.5 rounded-full mt-1 inline-block ${CONFIDENCE_COLORS[v.confidence_status] || 'bg-[#EEF1F4] text-[#667085]'}`}>
+                    {v.confidence_score}pts
+                  </span>
                 )}
-                <p className="text-xs text-slate-300 mt-2">{v.created_at?.slice(0, 10)}</p>
+                <p className="text-xs text-[#98A2B3] mt-2">{v.created_at?.slice(0, 10)}</p>
                 <button onClick={() => setSelectedVisite(v)}
-                  className="w-full mt-2 bg-blue-950 text-white font-black py-2 rounded-xl text-xs">
+                  className="w-full mt-2 bg-[#172B4D] text-white font-semibold py-2 rounded-lg text-xs">
                   📝 Compte rendu
                 </button>
               </div>
@@ -800,37 +803,37 @@ export default function DelegueApp({ session, profile }) {
 
       {/* SUPPORTS */}
       {page === 'supports' && (
-        <div className="p-6 flex flex-col gap-3 pb-10">
-          <p className="text-xs font-black text-blue-950 uppercase tracking-wider">
+        <div className="p-5 flex flex-col gap-3 pb-10">
+          <p className="text-xs font-semibold text-[#172B4D] uppercase tracking-wide">
             {supports.length} support{supports.length > 1 ? 's' : ''} disponible{supports.length > 1 ? 's' : ''}
           </p>
           {supports.length === 0 ? (
-            <div className="bg-white rounded-2xl p-8 text-center">
-              <p className="text-4xl mb-3">📚</p>
-              <p className="text-slate-400 text-sm">Aucun support disponible</p>
+            <div className="bg-white rounded-xl p-8 text-center border border-[#DDE4EA]">
+              <p className="text-3xl mb-2">📚</p>
+              <p className="text-[#667085] text-sm">Aucun support disponible</p>
             </div>
           ) : (
             supports.map(s => (
-              <div key={s.id} className="bg-white rounded-2xl p-4">
+              <div key={s.id} className="bg-white rounded-xl p-4 border border-[#DDE4EA]">
                 <div className="flex items-start gap-3">
-                  <span className={`w-10 h-10 rounded-xl flex items-center justify-center text-lg flex-shrink-0 ${TYPE_COLORS_SUPPORT[s.type]}`}>
+                  <span className={`w-10 h-10 rounded-lg flex items-center justify-center text-lg flex-shrink-0 ${TYPE_COLORS_SUPPORT[s.type]}`}>
                     {TYPE_ICONS[s.type]}
                   </span>
                   <div className="flex-1 min-w-0">
-                    <p className="font-black text-blue-950 text-sm truncate">{s.nom}</p>
-                    {s.laboratoires && <p className="text-xs text-slate-400">🧪 {s.laboratoires.nom}</p>}
-                    {s.produits && <p className="text-xs text-slate-400">💊 {s.produits.nom}</p>}
+                    <p className="font-semibold text-[#172B4D] text-sm truncate">{s.nom}</p>
+                    {s.laboratoires && <p className="text-xs text-[#667085]">🧪 {s.laboratoires.nom}</p>}
+                    {s.produits && <p className="text-xs text-[#667085]">💊 {s.produits.nom}</p>}
                     <div className="flex gap-2 mt-1">
-                      <span className="text-xs text-slate-400">v{s.version}</span>
+                      <span className="text-xs text-[#98A2B3]">v{s.version}</span>
                       {s.is_offline && (
-                        <span className="text-xs bg-blue-50 text-blue-600 font-bold px-2 py-0.5 rounded-full">
+                        <span className="text-xs bg-[#E8F0FE] text-[#2563EB] font-medium px-2 py-0.5 rounded-full">
                           📵 Offline
                         </span>
                       )}
                     </div>
                   </div>
                   <a href={s.file_url} target="_blank" rel="noreferrer"
-                    className="bg-teal-400 text-blue-950 px-3 py-2 rounded-xl text-xs font-black flex-shrink-0">
+                    className="bg-[#087F5B] text-white px-3 py-2 rounded-lg text-xs font-semibold flex-shrink-0">
                     Ouvrir
                   </a>
                 </div>

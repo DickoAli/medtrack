@@ -26,9 +26,12 @@ export default function GestionProduits({ onBack, profile }) {
 
   const STATUTS = ['Normal', 'Éliminé de gamme', 'Arrêt de distribution']
   const STATUT_COLORS = {
-    'Normal': 'bg-teal-100 text-teal-600',
-    'Éliminé de gamme': 'bg-rose-100 text-rose-500',
-    'Arrêt de distribution': 'bg-amber-100 text-amber-600'
+    'Normal': 'bg-[#E7F5EF] text-[#087F5B]',
+    'Éliminé de gamme': 'bg-[#FDE8E8] text-[#DC2626]',
+    'Arrêt de distribution': 'bg-[#FEF3E2] text-[#B45309]'
+  }
+  const STATUT_BORDER = {
+    'Normal': '#087F5B', 'Éliminé de gamme': '#DC2626', 'Arrêt de distribution': '#F59E0B'
   }
   const FORMES = ['Comprimé', 'Gélule', 'Sirop', 'Injectable', 'Sachet', 'Crème', 'Pommade', 'Suppositoire', 'Autre']
 
@@ -61,7 +64,7 @@ export default function GestionProduits({ onBack, profile }) {
     if (!form.laboratoire_id) { alert('Sélectionnez un laboratoire'); return }
     setSaving(true)
 
-    await supabase.from('produits').insert({
+    const { error } = await supabase.from('produits').insert({
       nom: form.nom,
       dci: form.dci || null,
       dosage: form.dosage || null,
@@ -77,6 +80,13 @@ export default function GestionProduits({ onBack, profile }) {
     })
 
     setSaving(false)
+
+    if (error) {
+      console.error('Erreur ajout produit:', error)
+      alert('Erreur lors de l\'ajout du produit : ' + error.message)
+      return
+    }
+
     setShowForm(false)
     resetForm()
     setSuccessMsg('Produit ajouté !')
@@ -150,18 +160,11 @@ export default function GestionProduits({ onBack, profile }) {
   }
 
   const downloadTemplate = () => {
-    const template = [
-      {
-        'Nom': 'Doliprane 500mg',
-        'DCI': 'Paracétamol',
-        'Dosage': '500mg',
-        'Forme': 'Comprimé',
-        'Conditionnement': 'B/16',
-        'Code': 'DOL500',
-        'Laboratoire': 'Sanofi',
-        'Categorie': 'Antalgique'
-      }
-    ]
+    const template = [{
+      'Nom': 'Doliprane 500mg', 'DCI': 'Paracétamol', 'Dosage': '500mg',
+      'Forme': 'Comprimé', 'Conditionnement': 'B/16', 'Code': 'DOL500',
+      'Laboratoire': 'Sanofi', 'Categorie': 'Antalgique'
+    }]
     const wb = XLSX.utils.book_new()
     const ws = XLSX.utils.json_to_sheet(template)
     XLSX.utils.book_append_sheet(wb, ws, 'Produits')
@@ -182,39 +185,38 @@ export default function GestionProduits({ onBack, profile }) {
   })
 
   if (loading) return (
-    <div className="min-h-screen bg-slate-100 flex items-center justify-center">
-      <p className="text-teal-500 font-bold">Chargement...</p>
+    <div className="min-h-screen bg-[#F4F7F9] flex items-center justify-center">
+      <p className="text-[#087F5B] font-medium">Chargement...</p>
     </div>
   )
 
   return (
-    <div className="min-h-screen bg-slate-100">
-      <div className="bg-blue-950 px-6 py-4 flex items-center justify-between">
+    <div className="min-h-screen bg-[#F4F7F9]">
+      <div className="bg-[#172B4D] px-5 py-4 flex items-center justify-between">
         <div className="flex items-center gap-4">
           <button onClick={onBack} className="text-white text-xl">←</button>
           <div>
-            <h1 className="text-white font-black text-lg">Produits</h1>
-            <p className="text-teal-400 text-xs font-bold uppercase tracking-wider">
+            <h1 className="text-white font-semibold text-base">Produits</h1>
+            <p className="text-[#9AA9C2] text-xs font-medium uppercase tracking-wide">
               {produits.length} produit{produits.length > 1 ? 's' : ''}
             </p>
           </div>
         </div>
         <button onClick={() => { setShowForm(true); resetForm() }}
-          className="bg-teal-400 text-blue-950 px-4 py-2 rounded-xl font-black text-xs">
+          className="bg-[#087F5B] text-white px-4 py-2 rounded-lg font-semibold text-xs">
           + Ajouter
         </button>
       </div>
 
-      {/* Tabs */}
-      <div className="bg-white flex border-b border-slate-200">
+      <div className="bg-white flex border-b border-[#DDE4EA]">
         {[
-          { id: 'liste', label: '📋 Liste' },
-          { id: 'import', label: '📥 Import' },
-          { id: 'stats', label: '📊 Stats' },
+          { id: 'liste', label: 'Liste' },
+          { id: 'import', label: 'Import' },
+          { id: 'stats', label: 'Stats' },
         ].map(t => (
           <button key={t.id} onClick={() => setTab(t.id)}
-            className={`flex-1 py-3 text-xs font-black transition-colors ${
-              tab === t.id ? 'text-teal-500 border-b-2 border-teal-500' : 'text-slate-400'
+            className={`flex-1 py-3 text-xs font-semibold transition-colors ${
+              tab === t.id ? 'text-[#087F5B] border-b-2 border-[#087F5B]' : 'text-[#667085]'
             }`}>
             {t.label}
           </button>
@@ -222,30 +224,29 @@ export default function GestionProduits({ onBack, profile }) {
       </div>
 
       {successMsg && (
-        <div className="mx-6 mt-4 bg-teal-50 border border-teal-200 rounded-2xl p-3 text-center">
-          <p className="text-teal-600 font-black text-sm">✅ {successMsg}</p>
+        <div className="mx-5 mt-4 bg-[#E7F5EF] border border-[#087F5B]/20 rounded-xl p-3 text-center">
+          <p className="text-[#087F5B] font-semibold text-sm">✅ {successMsg}</p>
         </div>
       )}
 
-      {/* Formulaire */}
       {showForm && (
-        <div className="fixed inset-0 bg-blue-950/60 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl p-6 w-full max-w-sm shadow-2xl max-h-screen overflow-y-auto">
-            <h2 className="font-black text-blue-950 text-lg mb-4">Nouveau produit</h2>
+        <div className="fixed inset-0 bg-[#172B4D]/60 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl p-6 w-full max-w-sm shadow-2xl max-h-screen overflow-y-auto">
+            <h2 className="font-semibold text-[#172B4D] text-lg mb-4">Nouveau produit</h2>
             <div className="flex flex-col gap-4">
               <div>
-                <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Laboratoire *</label>
+                <label className="text-xs font-medium text-[#667085] uppercase tracking-wide">Laboratoire *</label>
                 <select value={form.laboratoire_id} onChange={e => set('laboratoire_id', e.target.value)}
-                  className="w-full mt-1 p-3 rounded-xl border border-slate-200 bg-slate-50 text-sm">
+                  className="w-full mt-1 p-3 rounded-lg border border-[#DDE4EA] bg-white text-sm text-[#172B4D]">
                   <option value="">Sélectionner...</option>
                   {laboratoires.map(l => <option key={l.id} value={l.id}>{l.nom}</option>)}
                 </select>
               </div>
 
               <div>
-                <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Marque</label>
+                <label className="text-xs font-medium text-[#667085] uppercase tracking-wide">Marque</label>
                 <select value={form.brand_id} onChange={e => set('brand_id', e.target.value)}
-                  className="w-full mt-1 p-3 rounded-xl border border-slate-200 bg-slate-50 text-sm">
+                  className="w-full mt-1 p-3 rounded-lg border border-[#DDE4EA] bg-white text-sm text-[#172B4D]">
                   <option value="">Aucune</option>
                   {brands.filter(b => !form.laboratoire_id || b.laboratoire_id === form.laboratoire_id)
                     .map(b => <option key={b.id} value={b.id}>{b.nom}</option>)}
@@ -253,30 +254,30 @@ export default function GestionProduits({ onBack, profile }) {
               </div>
 
               <div>
-                <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Nom commercial *</label>
+                <label className="text-xs font-medium text-[#667085] uppercase tracking-wide">Nom commercial *</label>
                 <input value={form.nom} onChange={e => set('nom', e.target.value)}
-                  className="w-full mt-1 p-3 rounded-xl border border-slate-200 bg-slate-50 text-sm"
+                  className="w-full mt-1 p-3 rounded-lg border border-[#DDE4EA] bg-white text-sm text-[#172B4D]"
                   placeholder="Ex: Doliprane" />
               </div>
 
               <div>
-                <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">DCI (nom générique)</label>
+                <label className="text-xs font-medium text-[#667085] uppercase tracking-wide">DCI (nom générique)</label>
                 <input value={form.dci} onChange={e => set('dci', e.target.value)}
-                  className="w-full mt-1 p-3 rounded-xl border border-slate-200 bg-slate-50 text-sm"
+                  className="w-full mt-1 p-3 rounded-lg border border-[#DDE4EA] bg-white text-sm text-[#172B4D]"
                   placeholder="Ex: Paracétamol" />
               </div>
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Dosage</label>
+                  <label className="text-xs font-medium text-[#667085] uppercase tracking-wide">Dosage</label>
                   <input value={form.dosage} onChange={e => set('dosage', e.target.value)}
-                    className="w-full mt-1 p-3 rounded-xl border border-slate-200 bg-slate-50 text-sm"
+                    className="w-full mt-1 p-3 rounded-lg border border-[#DDE4EA] bg-white text-sm text-[#172B4D]"
                     placeholder="Ex: 500mg" />
                 </div>
                 <div>
-                  <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Forme</label>
+                  <label className="text-xs font-medium text-[#667085] uppercase tracking-wide">Forme</label>
                   <select value={form.forme} onChange={e => set('forme', e.target.value)}
-                    className="w-full mt-1 p-3 rounded-xl border border-slate-200 bg-slate-50 text-sm">
+                    className="w-full mt-1 p-3 rounded-lg border border-[#DDE4EA] bg-white text-sm text-[#172B4D]">
                     <option value="">Sélectionner...</option>
                     {FORMES.map(f => <option key={f}>{f}</option>)}
                   </select>
@@ -284,34 +285,34 @@ export default function GestionProduits({ onBack, profile }) {
               </div>
 
               <div>
-                <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Conditionnement</label>
+                <label className="text-xs font-medium text-[#667085] uppercase tracking-wide">Conditionnement</label>
                 <input value={form.conditionnement} onChange={e => set('conditionnement', e.target.value)}
-                  className="w-full mt-1 p-3 rounded-xl border border-slate-200 bg-slate-50 text-sm"
+                  className="w-full mt-1 p-3 rounded-lg border border-[#DDE4EA] bg-white text-sm text-[#172B4D]"
                   placeholder="Ex: B/16, Flacon 150ml" />
               </div>
 
               <div>
-                <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Code interne</label>
+                <label className="text-xs font-medium text-[#667085] uppercase tracking-wide">Code interne</label>
                 <input value={form.code_interne} onChange={e => set('code_interne', e.target.value)}
-                  className="w-full mt-1 p-3 rounded-xl border border-slate-200 bg-slate-50 text-sm"
+                  className="w-full mt-1 p-3 rounded-lg border border-[#DDE4EA] bg-white text-sm text-[#172B4D]"
                   placeholder="Référence interne labo" />
               </div>
 
               <div>
-                <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Statut</label>
+                <label className="text-xs font-medium text-[#667085] uppercase tracking-wide">Statut</label>
                 <select value={form.statut_produit} onChange={e => set('statut_produit', e.target.value)}
-                  className="w-full mt-1 p-3 rounded-xl border border-slate-200 bg-slate-50 text-sm">
+                  className="w-full mt-1 p-3 rounded-lg border border-[#DDE4EA] bg-white text-sm text-[#172B4D]">
                   {STATUTS.map(s => <option key={s}>{s}</option>)}
                 </select>
               </div>
 
               <div className="flex gap-3">
                 <button onClick={() => { setShowForm(false); resetForm() }}
-                  className="flex-1 bg-slate-100 text-slate-600 font-black py-3 rounded-xl text-sm">
+                  className="flex-1 bg-[#EEF1F4] text-[#667085] font-semibold py-3 rounded-lg text-sm">
                   Annuler
                 </button>
                 <button onClick={handleSave} disabled={saving}
-                  className="flex-1 bg-teal-400 text-blue-950 font-black py-3 rounded-xl text-sm">
+                  className="flex-1 bg-[#087F5B] text-white font-semibold py-3 rounded-lg text-sm">
                   {saving ? '...' : 'Enregistrer'}
                 </button>
               </div>
@@ -320,62 +321,58 @@ export default function GestionProduits({ onBack, profile }) {
         </div>
       )}
 
-      {/* LISTE */}
       {tab === 'liste' && (
-        <div className="p-6 flex flex-col gap-4 pb-10">
+        <div className="p-5 flex flex-col gap-4 pb-10">
           <div className="flex flex-col gap-3">
             <input value={search} onChange={e => setSearch(e.target.value)}
-              className="w-full p-3 rounded-xl border border-slate-200 bg-white text-sm"
+              className="w-full p-3 rounded-lg border border-[#DDE4EA] bg-white text-sm text-[#172B4D]"
               placeholder="🔍 Rechercher par nom, DCI, dosage..." />
             <div className="grid grid-cols-2 gap-3">
               <select value={filterLabo} onChange={e => setFilterLabo(e.target.value)}
-                className="p-3 rounded-xl border border-slate-200 bg-white text-sm">
+                className="p-3 rounded-lg border border-[#DDE4EA] bg-white text-sm text-[#172B4D]">
                 <option value="tous">Tous les labos</option>
                 {laboratoires.map(l => <option key={l.id} value={l.id}>{l.nom}</option>)}
               </select>
               <select value={filterStatut} onChange={e => setFilterStatut(e.target.value)}
-                className="p-3 rounded-xl border border-slate-200 bg-white text-sm">
+                className="p-3 rounded-lg border border-[#DDE4EA] bg-white text-sm text-[#172B4D]">
                 <option value="tous">Tous statuts</option>
                 {STATUTS.map(s => <option key={s} value={s}>{s}</option>)}
               </select>
             </div>
           </div>
 
-          <p className="text-xs text-slate-400 font-bold uppercase tracking-wider">
+          <p className="text-xs text-[#667085] font-semibold uppercase tracking-wide">
             {filtered.length} produit{filtered.length > 1 ? 's' : ''}
           </p>
 
           {filtered.map(p => (
-            <div key={p.id} className={`bg-white rounded-2xl p-4 border-l-4 ${
-              p.statut_produit === 'Normal' ? 'border-teal-400' :
-              p.statut_produit === 'Arrêt de distribution' ? 'border-amber-400' : 'border-rose-400'
-            }`}>
+            <div key={p.id} className="bg-white rounded-xl p-4 border border-[#DDE4EA]" style={{ borderLeft: `2px solid ${STATUT_BORDER[p.statut_produit]}` }}>
               <div className="flex items-start justify-between gap-3">
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 flex-wrap mb-1">
-                    <p className="font-black text-blue-950 text-sm">{p.nom}</p>
-                    <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${STATUT_COLORS[p.statut_produit]}`}>
+                    <p className="font-semibold text-[#172B4D]">{p.nom}</p>
+                    <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${STATUT_COLORS[p.statut_produit]}`}>
                       {p.statut_produit}
                     </span>
                   </div>
-                  {p.dci && <p className="text-xs text-slate-500 font-bold">DCI: {p.dci}</p>}
+                  {p.dci && <p className="text-xs text-[#667085] font-medium">DCI: {p.dci}</p>}
                   <div className="flex gap-2 mt-1 flex-wrap">
-                    {p.dosage && <span className="text-xs bg-blue-50 text-blue-600 font-bold px-2 py-0.5 rounded-full">{p.dosage}</span>}
-                    {p.forme && <span className="text-xs bg-purple-50 text-purple-600 font-bold px-2 py-0.5 rounded-full">{p.forme}</span>}
-                    {p.conditionnement && <span className="text-xs bg-slate-100 text-slate-500 font-bold px-2 py-0.5 rounded-full">{p.conditionnement}</span>}
+                    {p.dosage && <span className="text-xs bg-[#E8F0FE] text-[#2563EB] font-semibold px-2 py-0.5 rounded-full">{p.dosage}</span>}
+                    {p.forme && <span className="text-xs bg-[#EEF1F4] text-[#667085] font-semibold px-2 py-0.5 rounded-full">{p.forme}</span>}
+                    {p.conditionnement && <span className="text-xs bg-[#EEF1F4] text-[#667085] font-semibold px-2 py-0.5 rounded-full">{p.conditionnement}</span>}
                   </div>
-                  <p className="text-xs text-slate-400 mt-1">🧪 {p.laboratoires?.nom}</p>
-                  {p.brands && <p className="text-xs text-slate-400">🏷️ {p.brands.nom}</p>}
-                  {p.code_interne && <p className="text-xs text-slate-400">📦 {p.code_interne}</p>}
+                  <p className="text-xs text-[#667085] mt-1">🧪 {p.laboratoires?.nom}</p>
+                  {p.brands && <p className="text-xs text-[#667085]">🏷️ {p.brands.nom}</p>}
+                  {p.code_interne && <p className="text-xs text-[#98A2B3]">📦 {p.code_interne}</p>}
                 </div>
                 <div className="flex flex-col gap-2 flex-shrink-0">
                   <select value={p.statut_produit}
                     onChange={e => changeStatut(p.id, e.target.value)}
-                    className="text-xs border border-slate-200 rounded-lg p-1 bg-slate-50">
+                    className="text-xs border border-[#DDE4EA] rounded-lg p-1 bg-white text-[#172B4D]">
                     {STATUTS.map(s => <option key={s}>{s}</option>)}
                   </select>
                   <button onClick={() => handleDelete(p.id)}
-                    className="bg-rose-50 text-rose-500 px-2 py-1.5 rounded-lg text-xs font-bold">
+                    className="bg-[#FDE8E8] text-[#DC2626] px-2 py-1.5 rounded-lg text-xs font-semibold">
                     🗑️
                   </button>
                 </div>
@@ -385,12 +382,11 @@ export default function GestionProduits({ onBack, profile }) {
         </div>
       )}
 
-      {/* IMPORT */}
       {tab === 'import' && (
-        <div className="p-6 flex flex-col gap-4 pb-10">
-          <div className="bg-blue-50 border border-blue-200 rounded-2xl p-4">
-            <p className="text-xs text-blue-700 font-black mb-2">📋 Colonnes acceptées dans le fichier Excel/CSV :</p>
-            <div className="grid grid-cols-2 gap-1 text-xs text-blue-600">
+        <div className="p-5 flex flex-col gap-4 pb-10">
+          <div className="bg-[#E8F0FE] border border-[#2563EB]/20 rounded-xl p-4">
+            <p className="text-xs text-[#2563EB] font-semibold mb-2">📋 Colonnes acceptées dans le fichier Excel/CSV :</p>
+            <div className="grid grid-cols-2 gap-1 text-xs text-[#2563EB]">
               <span>• Nom (obligatoire)</span>
               <span>• DCI</span>
               <span>• Dosage</span>
@@ -403,7 +399,7 @@ export default function GestionProduits({ onBack, profile }) {
           </div>
 
           <button onClick={downloadTemplate}
-            className="w-full bg-blue-950 text-white font-black py-4 rounded-2xl text-sm">
+            className="w-full bg-[#172B4D] text-white font-semibold py-4 rounded-xl text-sm">
             📥 Télécharger le modèle Excel
           </button>
 
@@ -412,75 +408,72 @@ export default function GestionProduits({ onBack, profile }) {
             className="hidden" />
 
           <button onClick={() => fileRef.current.click()} disabled={importing}
-            className="w-full bg-teal-400 text-blue-950 font-black py-4 rounded-2xl text-sm">
+            className="w-full bg-[#087F5B] text-white font-semibold py-4 rounded-xl text-sm">
             {importing ? '⏳ Import en cours...' : '📤 Importer un fichier'}
           </button>
 
-          <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4">
-            <p className="text-xs text-amber-700 font-bold">
+          <div className="bg-[#FEF3E2] border border-[#F59E0B]/30 rounded-xl p-4">
+            <p className="text-xs text-[#B45309] font-semibold">
               ⚠️ Si la colonne "Laboratoire" ne correspond à aucun laboratoire existant, le produit sera assigné au premier laboratoire de votre liste.
             </p>
           </div>
 
-          {/* Stats import */}
-          <div className="bg-white rounded-2xl p-4">
-            <p className="text-xs font-black text-blue-950 uppercase tracking-wider mb-3">État du catalogue</p>
+          <div className="bg-white rounded-xl p-4 border border-[#DDE4EA]">
+            <p className="text-xs font-semibold text-[#172B4D] uppercase tracking-wide mb-3">État du catalogue</p>
             <div className="grid grid-cols-3 gap-3 text-center">
               <div>
-                <p className="text-2xl font-black text-teal-500">{produits.filter(p => p.statut_produit === 'Normal').length}</p>
-                <p className="text-xs text-slate-400">Actifs</p>
+                <p className="text-xl font-semibold text-[#087F5B]">{produits.filter(p => p.statut_produit === 'Normal').length}</p>
+                <p className="text-xs text-[#98A2B3]">Actifs</p>
               </div>
               <div>
-                <p className="text-2xl font-black text-amber-500">{produits.filter(p => p.statut_produit === 'Arrêt de distribution').length}</p>
-                <p className="text-xs text-slate-400">Arrêtés</p>
+                <p className="text-xl font-semibold text-[#B45309]">{produits.filter(p => p.statut_produit === 'Arrêt de distribution').length}</p>
+                <p className="text-xs text-[#98A2B3]">Arrêtés</p>
               </div>
               <div>
-                <p className="text-2xl font-black text-rose-500">{produits.filter(p => p.statut_produit === 'Éliminé de gamme').length}</p>
-                <p className="text-xs text-slate-400">Éliminés</p>
+                <p className="text-xl font-semibold text-[#DC2626]">{produits.filter(p => p.statut_produit === 'Éliminé de gamme').length}</p>
+                <p className="text-xs text-[#98A2B3]">Éliminés</p>
               </div>
             </div>
           </div>
         </div>
       )}
 
-      {/* STATS */}
       {tab === 'stats' && (
-        <div className="p-6 flex flex-col gap-4 pb-10">
+        <div className="p-5 flex flex-col gap-4 pb-10">
           <div className="grid grid-cols-2 gap-3">
-            <div className="bg-white rounded-2xl p-4 border-l-4 border-teal-400">
-              <p className="text-2xl font-black text-blue-950">{produits.length}</p>
-              <p className="text-xs text-slate-500 font-bold uppercase tracking-wider mt-1">Total produits</p>
+            <div className="bg-white rounded-xl p-4 border border-[#DDE4EA]" style={{ borderLeft: '2px solid #087F5B' }}>
+              <p className="text-xl font-semibold text-[#172B4D]">{produits.length}</p>
+              <p className="text-xs text-[#667085] font-medium uppercase tracking-wide mt-1">Total produits</p>
             </div>
-            <div className="bg-white rounded-2xl p-4 border-l-4 border-blue-400">
-              <p className="text-2xl font-black text-blue-950">{laboratoires.length}</p>
-              <p className="text-xs text-slate-500 font-bold uppercase tracking-wider mt-1">Laboratoires</p>
+            <div className="bg-white rounded-xl p-4 border border-[#DDE4EA]" style={{ borderLeft: '2px solid #2563EB' }}>
+              <p className="text-xl font-semibold text-[#172B4D]">{laboratoires.length}</p>
+              <p className="text-xs text-[#667085] font-medium uppercase tracking-wide mt-1">Laboratoires</p>
             </div>
-            <div className="bg-white rounded-2xl p-4 border-l-4 border-purple-400">
-              <p className="text-2xl font-black text-blue-950">{produits.filter(p => p.dci).length}</p>
-              <p className="text-xs text-slate-500 font-bold uppercase tracking-wider mt-1">Avec DCI</p>
+            <div className="bg-white rounded-xl p-4 border border-[#DDE4EA]">
+              <p className="text-xl font-semibold text-[#172B4D]">{produits.filter(p => p.dci).length}</p>
+              <p className="text-xs text-[#667085] font-medium uppercase tracking-wide mt-1">Avec DCI</p>
             </div>
-            <div className="bg-white rounded-2xl p-4 border-l-4 border-amber-400">
-              <p className="text-2xl font-black text-blue-950">{produits.filter(p => p.dosage).length}</p>
-              <p className="text-xs text-slate-500 font-bold uppercase tracking-wider mt-1">Avec dosage</p>
+            <div className="bg-white rounded-xl p-4 border border-[#DDE4EA]">
+              <p className="text-xl font-semibold text-[#172B4D]">{produits.filter(p => p.dosage).length}</p>
+              <p className="text-xs text-[#667085] font-medium uppercase tracking-wide mt-1">Avec dosage</p>
             </div>
           </div>
 
-          {/* Par laboratoire */}
-          <p className="text-xs font-black text-slate-400 uppercase tracking-wider">Par laboratoire</p>
+          <p className="text-xs font-semibold text-[#667085] uppercase tracking-wide">Par laboratoire</p>
           {laboratoires.map(l => {
             const count = produits.filter(p => p.laboratoire_id === l.id).length
             const actifs = produits.filter(p => p.laboratoire_id === l.id && p.statut_produit === 'Normal').length
             return (
-              <div key={l.id} className="bg-white rounded-2xl p-4">
+              <div key={l.id} className="bg-white rounded-xl p-4 border border-[#DDE4EA]">
                 <div className="flex items-center justify-between mb-2">
-                  <p className="font-black text-blue-950 text-sm">{l.nom}</p>
-                  <p className="font-black text-teal-500">{actifs}/{count}</p>
+                  <p className="font-semibold text-[#172B4D] text-sm">{l.nom}</p>
+                  <p className="font-semibold text-[#087F5B]">{actifs}/{count}</p>
                 </div>
-                <div className="bg-slate-100 rounded-full h-2">
-                  <div className="bg-teal-400 h-2 rounded-full"
+                <div className="bg-[#EEF1F4] rounded-full h-2">
+                  <div className="bg-[#087F5B] h-2 rounded-full"
                     style={{ width: count > 0 ? `${(actifs / count) * 100}%` : '0%' }} />
                 </div>
-                <p className="text-xs text-slate-400 mt-1">{actifs} actifs · {count - actifs} inactifs</p>
+                <p className="text-xs text-[#98A2B3] mt-1">{actifs} actifs · {count - actifs} inactifs</p>
               </div>
             )
           })}

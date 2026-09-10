@@ -29,7 +29,6 @@ export default function CorrelationVentes({ onBack, profile }) {
     setLoading(false)
   }
 
-  // Générer les N derniers mois
   const getLast6Months = () => {
     return Array.from({ length: nbMois }, (_, i) => {
       const d = new Date()
@@ -40,22 +39,12 @@ export default function CorrelationVentes({ onBack, profile }) {
 
   const months = getLast6Months()
 
-  // Données par produit et par mois
   const getCorrelationData = () => {
-    const produitsFiltered = filterProduit === 'tous'
-      ? produits
-      : produits.filter(p => p.id === filterProduit)
+    const produitsFiltered = filterProduit === 'tous' ? produits : produits.filter(p => p.id === filterProduit)
 
     return produitsFiltered.map(produit => {
       const data = months.map(m => {
-        // Ventes ce mois
-        const vente = ventes.find(v =>
-          v.produit_id === produit.id &&
-          v.period_month === m.month &&
-          v.period_year === m.year
-        )
-
-        // Visites ce mois avec ce produit
+        const vente = ventes.find(v => v.produit_id === produit.id && v.period_month === m.month && v.period_year === m.year)
         const monthStart = `${m.year}-${String(m.month).padStart(2, '0')}-01`
         const monthEnd = `${m.year}-${String(m.month).padStart(2, '0')}-31`
         const visitesMonth = visites.filter(v => {
@@ -64,13 +53,7 @@ export default function CorrelationVentes({ onBack, profile }) {
           const inCampaign = filterCampaign === 'tous' || v.campaign_id === filterCampaign
           return inMonth && hasProduct && inCampaign
         })
-
-        return {
-          ...m,
-          ventes: vente?.total_quantity || 0,
-          visites: visitesMonth.length,
-          realisees: visitesMonth.filter(v => v.statut === 'Réalisée').length
-        }
+        return { ...m, ventes: vente?.total_quantity || 0, visites: visitesMonth.length, realisees: visitesMonth.filter(v => v.statut === 'Réalisée').length }
       })
 
       const totalVentes = data.reduce((s, d) => s + d.ventes, 0)
@@ -82,7 +65,6 @@ export default function CorrelationVentes({ onBack, profile }) {
 
   const correlationData = getCorrelationData()
 
-  // Calcul corrélation simple
   const getCorrelationScore = (data) => {
     const ventesArr = data.map(d => d.ventes)
     const visitesArr = data.map(d => d.realisees)
@@ -101,39 +83,38 @@ export default function CorrelationVentes({ onBack, profile }) {
   }
 
   if (loading) return (
-    <div className="min-h-screen bg-slate-100 flex items-center justify-center">
-      <p className="text-teal-500 font-bold">Chargement...</p>
+    <div className="min-h-screen bg-[#F4F7F9] flex items-center justify-center">
+      <p className="text-[#087F5B] font-medium">Chargement...</p>
     </div>
   )
 
   return (
-    <div className="min-h-screen bg-slate-100">
-      <div className="bg-blue-950 px-6 py-4 flex items-center gap-4">
+    <div className="min-h-screen bg-[#F4F7F9]">
+      <div className="bg-[#172B4D] px-5 py-4 flex items-center gap-4">
         <button onClick={onBack} className="text-white text-xl">←</button>
         <div>
-          <h1 className="text-white font-black text-lg">Corrélation</h1>
-          <p className="text-teal-400 text-xs font-bold uppercase tracking-wider">
+          <h1 className="text-white font-semibold text-base">Corrélation</h1>
+          <p className="text-[#9AA9C2] text-xs font-medium uppercase tracking-wide">
             Visites terrain vs Ventes grossistes
           </p>
         </div>
       </div>
 
-      {/* Filtres */}
-      <div className="px-6 pt-4 flex flex-col gap-3">
-        <div className="bg-amber-50 border border-amber-200 rounded-2xl p-3">
-          <p className="text-xs text-amber-700 font-bold">
+      <div className="px-5 pt-4 flex flex-col gap-3">
+        <div className="bg-[#FEF3E2] border border-[#F59E0B]/30 rounded-xl p-3">
+          <p className="text-xs text-[#B45309] font-semibold">
             ⚠️ Ces données montrent une corrélation, pas une causalité. Une visite ne cause pas directement une vente.
           </p>
         </div>
 
         <select value={filterProduit} onChange={e => setFilterProduit(e.target.value)}
-          className="w-full p-3 rounded-xl border border-slate-200 bg-white text-sm">
+          className="w-full p-3 rounded-lg border border-[#DDE4EA] bg-white text-sm text-[#172B4D]">
           <option value="tous">Tous les produits</option>
           {produits.map(p => <option key={p.id} value={p.id}>{p.nom}</option>)}
         </select>
 
         <select value={filterCampaign} onChange={e => setFilterCampaign(e.target.value)}
-          className="w-full p-3 rounded-xl border border-slate-200 bg-white text-sm">
+          className="w-full p-3 rounded-lg border border-[#DDE4EA] bg-white text-sm text-[#172B4D]">
           <option value="tous">Toutes les campagnes</option>
           {campagnes.map(c => <option key={c.id} value={c.id}>{c.nom}</option>)}
         </select>
@@ -141,8 +122,8 @@ export default function CorrelationVentes({ onBack, profile }) {
         <div className="flex gap-2">
           {[3, 6, 12].map(n => (
             <button key={n} onClick={() => setNbMois(n)}
-              className={`flex-1 py-2 rounded-xl text-xs font-black border transition-colors ${
-                nbMois === n ? 'bg-blue-950 text-white border-blue-950' : 'bg-white text-slate-500 border-slate-200'
+              className={`flex-1 py-2 rounded-lg text-xs font-semibold border transition-colors ${
+                nbMois === n ? 'bg-[#172B4D] text-white border-[#172B4D]' : 'bg-white text-[#667085] border-[#DDE4EA]'
               }`}>
               {n} mois
             </button>
@@ -150,13 +131,12 @@ export default function CorrelationVentes({ onBack, profile }) {
         </div>
       </div>
 
-      <div className="p-6 flex flex-col gap-4 pb-10">
-
+      <div className="p-5 flex flex-col gap-4 pb-10">
         {correlationData.length === 0 ? (
-          <div className="bg-white rounded-2xl p-8 text-center">
-            <p className="text-4xl mb-3">📊</p>
-            <p className="text-slate-400 text-sm font-bold">Aucune donnée disponible</p>
-            <p className="text-slate-300 text-xs mt-1">Importez des ventes grossistes et enregistrez des visites</p>
+          <div className="bg-white rounded-xl p-8 text-center border border-[#DDE4EA]">
+            <p className="text-3xl mb-2">📊</p>
+            <p className="text-[#667085] text-sm font-medium">Aucune donnée disponible</p>
+            <p className="text-[#98A2B3] text-xs mt-1">Importez des ventes grossistes et enregistrez des visites</p>
           </div>
         ) : (
           correlationData.map(({ produit, data, totalVentes, totalVisites }) => {
@@ -164,85 +144,69 @@ export default function CorrelationVentes({ onBack, profile }) {
             const maxVentes = Math.max(...data.map(d => d.ventes), 1)
             const maxVisites = Math.max(...data.map(d => d.realisees), 1)
 
+            const scoreColor = corrScore !== null
+              ? (parseFloat(corrScore) >= 0.7 ? '#087F5B' : parseFloat(corrScore) >= 0.4 ? '#F59E0B' : parseFloat(corrScore) >= 0 ? '#98A2B3' : '#DC2626')
+              : '#98A2B3'
+
             return (
-              <div key={produit.id} className="bg-white rounded-2xl p-4">
-                {/* Header produit */}
+              <div key={produit.id} className="bg-white rounded-xl p-4 border border-[#DDE4EA]">
                 <div className="flex items-center justify-between mb-4">
                   <div>
-                    <p className="font-black text-blue-950 text-sm">{produit.nom}</p>
-                    {produit.dci && <p className="text-xs text-slate-400">DCI: {produit.dci}</p>}
+                    <p className="font-semibold text-[#172B4D] text-sm">{produit.nom}</p>
+                    {produit.dci && <p className="text-xs text-[#667085]">DCI: {produit.dci}</p>}
                   </div>
                   {corrScore !== null && (
                     <div className="text-right">
-                      <p className={`font-black text-lg ${
-                        parseFloat(corrScore) >= 0.7 ? 'text-teal-500' :
-                        parseFloat(corrScore) >= 0.4 ? 'text-amber-500' :
-                        parseFloat(corrScore) >= 0 ? 'text-slate-400' : 'text-rose-500'
-                      }`}>{corrScore}</p>
-                      <p className="text-xs text-slate-400">corrélation</p>
+                      <p className="font-semibold text-lg" style={{ color: scoreColor }}>{corrScore}</p>
+                      <p className="text-xs text-[#98A2B3]">corrélation</p>
                     </div>
                   )}
                 </div>
 
-                {/* KPIs */}
                 <div className="grid grid-cols-2 gap-3 mb-4">
-                  <div className="bg-teal-50 rounded-xl p-3 text-center">
-                    <p className="font-black text-teal-500 text-xl">{totalVentes.toLocaleString()}</p>
-                    <p className="text-xs text-slate-400">unités vendues</p>
+                  <div className="bg-[#E7F5EF] rounded-lg p-3 text-center">
+                    <p className="font-semibold text-[#087F5B] text-xl">{totalVentes.toLocaleString()}</p>
+                    <p className="text-xs text-[#98A2B3]">unités vendues</p>
                   </div>
-                  <div className="bg-blue-50 rounded-xl p-3 text-center">
-                    <p className="font-black text-blue-500 text-xl">{totalVisites}</p>
-                    <p className="text-xs text-slate-400">visites réalisées</p>
+                  <div className="bg-[#E8F0FE] rounded-lg p-3 text-center">
+                    <p className="font-semibold text-[#2563EB] text-xl">{totalVisites}</p>
+                    <p className="text-xs text-[#98A2B3]">visites réalisées</p>
                   </div>
                 </div>
 
-                {/* Graphique comparatif */}
-                <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">
+                <p className="text-xs font-semibold text-[#667085] uppercase tracking-wide mb-2">
                   Évolution comparative
                 </p>
                 <div className="flex items-end gap-1.5 h-28">
                   {data.map((m, i) => (
                     <div key={i} className="flex-1 flex flex-col items-center gap-0.5">
                       <div className="w-full flex gap-0.5 items-end" style={{ height: '80px' }}>
-                        {/* Barre ventes */}
-                        <div className="flex-1 bg-teal-400 rounded-t-sm transition-all"
+                        <div className="flex-1 bg-[#087F5B] rounded-t-sm transition-all"
                           style={{ height: `${maxVentes > 0 ? Math.max((m.ventes / maxVentes) * 80, m.ventes > 0 ? 4 : 0) : 0}px` }}
                           title={`Ventes: ${m.ventes}`} />
-                        {/* Barre visites */}
-                        <div className="flex-1 bg-blue-400 rounded-t-sm transition-all"
+                        <div className="flex-1 bg-[#2563EB] rounded-t-sm transition-all"
                           style={{ height: `${maxVisites > 0 ? Math.max((m.realisees / maxVisites) * 80, m.realisees > 0 ? 4 : 0) : 0}px` }}
                           title={`Visites: ${m.realisees}`} />
                       </div>
-                      <p className="text-xs text-slate-400">{m.label}</p>
+                      <p className="text-xs text-[#98A2B3]">{m.label}</p>
                     </div>
                   ))}
                 </div>
 
-                {/* Légende */}
                 <div className="flex gap-4 mt-2">
                   <div className="flex items-center gap-1">
-                    <div className="w-3 h-3 rounded-sm bg-teal-400" />
-                    <span className="text-xs text-slate-400">Ventes</span>
+                    <div className="w-3 h-3 rounded-sm bg-[#087F5B]" />
+                    <span className="text-xs text-[#98A2B3]">Ventes</span>
                   </div>
                   <div className="flex items-center gap-1">
-                    <div className="w-3 h-3 rounded-sm bg-blue-400" />
-                    <span className="text-xs text-slate-400">Visites</span>
+                    <div className="w-3 h-3 rounded-sm bg-[#2563EB]" />
+                    <span className="text-xs text-[#98A2B3]">Visites</span>
                   </div>
                 </div>
 
-                {/* Interprétation corrélation */}
                 {corrScore !== null && (
-                  <div className={`mt-3 rounded-xl p-3 ${
-                    parseFloat(corrScore) >= 0.7 ? 'bg-teal-50 border border-teal-200' :
-                    parseFloat(corrScore) >= 0.4 ? 'bg-amber-50 border border-amber-200' :
-                    parseFloat(corrScore) >= 0 ? 'bg-slate-50 border border-slate-200' :
-                    'bg-rose-50 border border-rose-200'
-                  }`}>
-                    <p className={`text-xs font-bold ${
-                      parseFloat(corrScore) >= 0.7 ? 'text-teal-600' :
-                      parseFloat(corrScore) >= 0.4 ? 'text-amber-600' :
-                      parseFloat(corrScore) >= 0 ? 'text-slate-500' : 'text-rose-500'
-                    }`}>
+                  <div className="mt-3 rounded-lg p-3" style={{ background: scoreColor + '15', border: `1px solid ${scoreColor}30` }}>
+                    <p className="text-xs font-semibold" style={{ color: scoreColor }}>
                       {parseFloat(corrScore) >= 0.7 ? '📈 Corrélation forte — les visites terrain semblent associées aux ventes' :
                        parseFloat(corrScore) >= 0.4 ? '📊 Corrélation modérée — lien partiel entre activité terrain et ventes' :
                        parseFloat(corrScore) >= 0 ? '➡️ Corrélation faible — peu de lien observable' :
@@ -251,11 +215,10 @@ export default function CorrelationVentes({ onBack, profile }) {
                   </div>
                 )}
 
-                {/* Tableau détaillé */}
                 <div className="mt-3 overflow-x-auto">
                   <table className="w-full text-xs">
                     <thead>
-                      <tr className="text-slate-400 border-b border-slate-100">
+                      <tr className="text-[#98A2B3] border-b border-[#DDE4EA]">
                         <th className="text-left py-1">Mois</th>
                         <th className="text-right py-1">Ventes</th>
                         <th className="text-right py-1">Visites</th>
@@ -263,10 +226,10 @@ export default function CorrelationVentes({ onBack, profile }) {
                     </thead>
                     <tbody>
                       {data.map((m, i) => (
-                        <tr key={i} className="border-b border-slate-50">
-                          <td className="py-1 text-slate-600">{m.label} {m.year}</td>
-                          <td className="py-1 text-right font-bold text-teal-500">{m.ventes.toLocaleString()}</td>
-                          <td className="py-1 text-right font-bold text-blue-500">{m.realisees}</td>
+                        <tr key={i} className="border-b border-[#F4F7F9]">
+                          <td className="py-1 text-[#667085]">{m.label} {m.year}</td>
+                          <td className="py-1 text-right font-semibold text-[#087F5B]">{m.ventes.toLocaleString()}</td>
+                          <td className="py-1 text-right font-semibold text-[#2563EB]">{m.realisees}</td>
                         </tr>
                       ))}
                     </tbody>

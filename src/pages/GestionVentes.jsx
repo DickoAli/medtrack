@@ -5,7 +5,6 @@ import * as XLSX from 'xlsx'
 export default function GestionVentes({ onBack, profile }) {
   const [wholesalers, setWholesalers] = useState([])
   const [imports, setImports] = useState([])
-  const [salesLines, setSalesLines] = useState([])
   const [aggregated, setAggregated] = useState([])
   const [produits, setProduits] = useState([])
   const [externalCodes, setExternalCodes] = useState([])
@@ -20,8 +19,7 @@ export default function GestionVentes({ onBack, profile }) {
   const [selectedWholesaler, setSelectedWholesaler] = useState(null)
   const [importPeriod, setImportPeriod] = useState({ month: new Date().getMonth() + 1, year: new Date().getFullYear() })
   const [form, setForm] = useState({
-    nom: '', code: '', type: 'national',
-    integration_type: 'manual', extranet_url: '',
+    nom: '', code: '', type: 'national', integration_type: 'manual', extranet_url: '',
     contact_nom: '', contact_email: '', contact_telephone: ''
   })
   const [mappingForm, setMappingForm] = useState({
@@ -49,20 +47,15 @@ export default function GestionVentes({ onBack, profile }) {
   }
 
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }))
-
   const resetForm = () => setForm({
-    nom: '', code: '', type: 'national',
-    integration_type: 'manual', extranet_url: '',
+    nom: '', code: '', type: 'national', integration_type: 'manual', extranet_url: '',
     contact_nom: '', contact_email: '', contact_telephone: ''
   })
 
   const handleSaveWholesaler = async () => {
     if (!form.nom) { alert('Le nom est obligatoire'); return }
     setSaving(true)
-    await supabase.from('wholesalers').insert({
-      ...form,
-      agence_id: profile.agence_id
-    })
+    await supabase.from('wholesalers').insert({ ...form, agence_id: profile.agence_id })
     setSaving(false)
     setShowForm(false)
     resetForm()
@@ -78,18 +71,12 @@ export default function GestionVentes({ onBack, profile }) {
   }
 
   const handleSaveMapping = async () => {
-    if (!mappingForm.produit_id || !mappingForm.external_code) {
-      alert('Produit et code externe obligatoires')
-      return
-    }
+    if (!mappingForm.produit_id || !mappingForm.external_code) { alert('Produit et code externe obligatoires'); return }
     setSaving(true)
     await supabase.from('product_external_codes').insert({
-      produit_id: mappingForm.produit_id,
-      wholesaler_id: showMapping.id,
-      external_code: mappingForm.external_code,
-      external_name: mappingForm.external_name,
-      unit: mappingForm.unit,
-      conditioning: mappingForm.conditioning
+      produit_id: mappingForm.produit_id, wholesaler_id: showMapping.id,
+      external_code: mappingForm.external_code, external_name: mappingForm.external_name,
+      unit: mappingForm.unit, conditioning: mappingForm.conditioning
     })
     setSaving(false)
     setMappingForm({ produit_id: '', external_code: '', external_name: '', unit: '', conditioning: '' })
@@ -109,20 +96,14 @@ export default function GestionVentes({ onBack, profile }) {
       const rows = XLSX.utils.sheet_to_json(sheet)
 
       const { data: importData } = await supabase.from('sales_imports').insert({
-        agence_id: profile.agence_id,
-        wholesaler_id: selectedWholesaler,
-        period_month: importPeriod.month,
-        period_year: importPeriod.year,
-        file_url: '',
-        total_lines: rows.length,
-        statut: 'processing',
-        imported_by: profile.id
+        agence_id: profile.agence_id, wholesaler_id: selectedWholesaler,
+        period_month: importPeriod.month, period_year: importPeriod.year,
+        file_url: '', total_lines: rows.length, statut: 'processing', imported_by: profile.id
       }).select().single()
 
       if (!importData) { setImporting(false); return }
 
-      let valid = 0
-      let errors = 0
+      let valid = 0, errors = 0
       const codes = externalCodes.filter(ec => ec.wholesaler_id === selectedWholesaler)
 
       for (const row of rows) {
@@ -136,28 +117,18 @@ export default function GestionVentes({ onBack, profile }) {
         const mapping = codes.find(c => c.external_code === externalCode)
 
         await supabase.from('sales_lines').insert({
-          import_id: importData.id,
-          agence_id: profile.agence_id,
-          wholesaler_id: selectedWholesaler,
-          produit_id: mapping?.produit_id || null,
-          external_code: externalCode,
+          import_id: importData.id, agence_id: profile.agence_id, wholesaler_id: selectedWholesaler,
+          produit_id: mapping?.produit_id || null, external_code: externalCode,
           external_name: String(row['Nom'] || row['nom'] || row['Produit'] || ''),
-          sale_date: saleDate,
-          quantity,
-          unit_price: unitPrice,
-          total_amount: quantity * unitPrice,
-          currency: 'XOF',
-          period_month: importPeriod.month,
-          period_year: importPeriod.year,
+          sale_date: saleDate, quantity, unit_price: unitPrice, total_amount: quantity * unitPrice,
+          currency: 'XOF', period_month: importPeriod.month, period_year: importPeriod.year,
           is_mapped: !!mapping
         })
         valid++
       }
 
       await supabase.from('sales_imports').update({
-        valid_lines: valid,
-        error_lines: errors,
-        statut: 'completed'
+        valid_lines: valid, error_lines: errors, statut: 'completed'
       }).eq('id', importData.id)
 
       await aggregateSales()
@@ -170,26 +141,14 @@ export default function GestionVentes({ onBack, profile }) {
   }
 
   const aggregateSales = async () => {
-    const { data: lines } = await supabase
-      .from('sales_lines')
-      .select('*')
-      .eq('agence_id', profile.agence_id)
-      .not('produit_id', 'is', null)
-
+    const { data: lines } = await supabase.from('sales_lines').select('*').eq('agence_id', profile.agence_id).not('produit_id', 'is', null)
     if (!lines) return
 
     const grouped = {}
     for (const line of lines) {
       const key = `${line.produit_id}_${line.period_month}_${line.period_year}`
       if (!grouped[key]) {
-        grouped[key] = {
-          produit_id: line.produit_id,
-          period_month: line.period_month,
-          period_year: line.period_year,
-          total_quantity: 0,
-          total_amount: 0,
-          wholesalers: new Set()
-        }
+        grouped[key] = { produit_id: line.produit_id, period_month: line.period_month, period_year: line.period_year, total_quantity: 0, total_amount: 0, wholesalers: new Set() }
       }
       grouped[key].total_quantity += line.quantity
       grouped[key].total_amount += line.total_amount || 0
@@ -199,18 +158,11 @@ export default function GestionVentes({ onBack, profile }) {
     for (const key of Object.keys(grouped)) {
       const g = grouped[key]
       const { data: prod } = await supabase.from('produits').select('laboratoire_id').eq('id', g.produit_id).single()
-
       await supabase.from('aggregated_sales').upsert({
-        agence_id: profile.agence_id,
-        produit_id: g.produit_id,
-        laboratoire_id: prod?.laboratoire_id,
-        period_month: g.period_month,
-        period_year: g.period_year,
-        total_quantity: g.total_quantity,
-        total_amount: g.total_amount,
-        wholesaler_count: g.wholesalers.size,
-        currency: 'XOF',
-        last_updated: new Date().toISOString()
+        agence_id: profile.agence_id, produit_id: g.produit_id, laboratoire_id: prod?.laboratoire_id,
+        period_month: g.period_month, period_year: g.period_year,
+        total_quantity: g.total_quantity, total_amount: g.total_amount,
+        wholesaler_count: g.wholesalers.size, currency: 'XOF', last_updated: new Date().toISOString()
       }, { onConflict: 'agence_id,produit_id,period_month,period_year' })
     }
   }
@@ -218,42 +170,41 @@ export default function GestionVentes({ onBack, profile }) {
   const MONTHS = ['Jan', 'Fév', 'Mar', 'Avr', 'Mai', 'Jun', 'Jul', 'Aoû', 'Sep', 'Oct', 'Nov', 'Déc']
 
   if (loading) return (
-    <div className="min-h-screen bg-slate-100 flex items-center justify-center">
-      <p className="text-teal-500 font-bold">Chargement...</p>
+    <div className="min-h-screen bg-[#F4F7F9] flex items-center justify-center">
+      <p className="text-[#087F5B] font-medium">Chargement...</p>
     </div>
   )
 
   return (
-    <div className="min-h-screen bg-slate-100">
-      <div className="bg-blue-950 px-6 py-4 flex items-center justify-between">
+    <div className="min-h-screen bg-[#F4F7F9]">
+      <div className="bg-[#172B4D] px-5 py-4 flex items-center justify-between">
         <div className="flex items-center gap-4">
           <button onClick={onBack} className="text-white text-xl">←</button>
           <div>
-            <h1 className="text-white font-black text-lg">Ventes & Grossistes</h1>
-            <p className="text-teal-400 text-xs font-bold uppercase tracking-wider">
+            <h1 className="text-white font-semibold text-base">Ventes & Grossistes</h1>
+            <p className="text-[#9AA9C2] text-xs font-medium uppercase tracking-wide">
               {wholesalers.length} grossiste{wholesalers.length > 1 ? 's' : ''}
             </p>
           </div>
         </div>
         {tab === 'grossistes' && (
           <button onClick={() => setShowForm(true)}
-            className="bg-teal-400 text-blue-950 px-4 py-2 rounded-xl font-black text-xs">
+            className="bg-[#087F5B] text-white px-4 py-2 rounded-lg font-semibold text-xs">
             + Ajouter
           </button>
         )}
       </div>
 
-      {/* Tabs */}
-      <div className="bg-white flex border-b border-slate-200">
+      <div className="bg-white flex border-b border-[#DDE4EA]">
         {[
-          { id: 'grossistes', label: '🏭 Grossistes' },
-          { id: 'mapping', label: '🔗 Mapping' },
-          { id: 'import', label: '📥 Import' },
-          { id: 'ventes', label: '📊 Ventes' },
+          { id: 'grossistes', label: 'Grossistes' },
+          { id: 'mapping', label: 'Mapping' },
+          { id: 'import', label: 'Import' },
+          { id: 'ventes', label: 'Ventes' },
         ].map(t => (
           <button key={t.id} onClick={() => setTab(t.id)}
-            className={`flex-1 py-3 text-xs font-black transition-colors ${
-              tab === t.id ? 'text-teal-500 border-b-2 border-teal-500' : 'text-slate-400'
+            className={`flex-1 py-3 text-xs font-semibold transition-colors ${
+              tab === t.id ? 'text-[#087F5B] border-b-2 border-[#087F5B]' : 'text-[#667085]'
             }`}>
             {t.label}
           </button>
@@ -261,63 +212,62 @@ export default function GestionVentes({ onBack, profile }) {
       </div>
 
       {successMsg && (
-        <div className="mx-6 mt-4 bg-teal-50 border border-teal-200 rounded-2xl p-3 text-center">
-          <p className="text-teal-600 font-black text-sm">✅ {successMsg}</p>
+        <div className="mx-5 mt-4 bg-[#E7F5EF] border border-[#087F5B]/20 rounded-xl p-3 text-center">
+          <p className="text-[#087F5B] font-semibold text-sm">✅ {successMsg}</p>
         </div>
       )}
 
-      {/* GROSSISTES */}
       {tab === 'grossistes' && (
-        <div className="p-6 flex flex-col gap-3 pb-10">
+        <div className="p-5 flex flex-col gap-3 pb-10">
           {showForm && (
-            <div className="fixed inset-0 bg-blue-950/60 flex items-center justify-center z-50 p-4">
-              <div className="bg-white rounded-2xl p-6 w-full max-w-sm shadow-2xl max-h-screen overflow-y-auto">
-                <h2 className="font-black text-blue-950 text-lg mb-4">Nouveau grossiste</h2>
+            <div className="fixed inset-0 bg-[#172B4D]/60 flex items-center justify-center z-50 p-4">
+              <div className="bg-white rounded-xl p-6 w-full max-w-sm shadow-2xl max-h-screen overflow-y-auto">
+                <h2 className="font-semibold text-[#172B4D] text-lg mb-4">Nouveau grossiste</h2>
                 <div className="flex flex-col gap-4">
                   <div>
-                    <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Nom *</label>
+                    <label className="text-xs font-medium text-[#667085] uppercase tracking-wide">Nom *</label>
                     <input value={form.nom} onChange={e => set('nom', e.target.value)}
-                      className="w-full mt-1 p-3 rounded-xl border border-slate-200 bg-slate-50 text-sm"
+                      className="w-full mt-1 p-3 rounded-lg border border-[#DDE4EA] bg-white text-sm text-[#172B4D]"
                       placeholder="Ex: CAMED SA" />
                   </div>
                   <div>
-                    <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Code</label>
+                    <label className="text-xs font-medium text-[#667085] uppercase tracking-wide">Code</label>
                     <input value={form.code} onChange={e => set('code', e.target.value)}
-                      className="w-full mt-1 p-3 rounded-xl border border-slate-200 bg-slate-50 text-sm"
+                      className="w-full mt-1 p-3 rounded-lg border border-[#DDE4EA] bg-white text-sm text-[#172B4D]"
                       placeholder="Ex: CAMED" />
                   </div>
                   <div>
-                    <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Type</label>
+                    <label className="text-xs font-medium text-[#667085] uppercase tracking-wide">Type</label>
                     <select value={form.type} onChange={e => set('type', e.target.value)}
-                      className="w-full mt-1 p-3 rounded-xl border border-slate-200 bg-slate-50 text-sm">
+                      className="w-full mt-1 p-3 rounded-lg border border-[#DDE4EA] bg-white text-sm text-[#172B4D]">
                       {Object.entries(TYPES).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
                     </select>
                   </div>
                   <div>
-                    <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">URL Extranet</label>
+                    <label className="text-xs font-medium text-[#667085] uppercase tracking-wide">URL Extranet</label>
                     <input value={form.extranet_url} onChange={e => set('extranet_url', e.target.value)}
-                      className="w-full mt-1 p-3 rounded-xl border border-slate-200 bg-slate-50 text-sm"
+                      className="w-full mt-1 p-3 rounded-lg border border-[#DDE4EA] bg-white text-sm text-[#172B4D]"
                       placeholder="https://..." />
                   </div>
                   <div>
-                    <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Contact</label>
+                    <label className="text-xs font-medium text-[#667085] uppercase tracking-wide">Contact</label>
                     <input value={form.contact_nom} onChange={e => set('contact_nom', e.target.value)}
-                      className="w-full mt-1 p-3 rounded-xl border border-slate-200 bg-slate-50 text-sm"
+                      className="w-full mt-1 p-3 rounded-lg border border-[#DDE4EA] bg-white text-sm text-[#172B4D]"
                       placeholder="Nom du contact" />
                   </div>
                   <div>
-                    <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Téléphone</label>
+                    <label className="text-xs font-medium text-[#667085] uppercase tracking-wide">Téléphone</label>
                     <input value={form.contact_telephone} onChange={e => set('contact_telephone', e.target.value)}
-                      className="w-full mt-1 p-3 rounded-xl border border-slate-200 bg-slate-50 text-sm"
+                      className="w-full mt-1 p-3 rounded-lg border border-[#DDE4EA] bg-white text-sm text-[#172B4D]"
                       placeholder="00223XXXXXXXX" />
                   </div>
                   <div className="flex gap-3">
                     <button onClick={() => { setShowForm(false); resetForm() }}
-                      className="flex-1 bg-slate-100 text-slate-600 font-black py-3 rounded-xl text-sm">
+                      className="flex-1 bg-[#EEF1F4] text-[#667085] font-semibold py-3 rounded-lg text-sm">
                       Annuler
                     </button>
                     <button onClick={handleSaveWholesaler} disabled={saving}
-                      className="flex-1 bg-teal-400 text-blue-950 font-black py-3 rounded-xl text-sm">
+                      className="flex-1 bg-[#087F5B] text-white font-semibold py-3 rounded-lg text-sm">
                       {saving ? '...' : 'Enregistrer'}
                     </button>
                   </div>
@@ -327,30 +277,30 @@ export default function GestionVentes({ onBack, profile }) {
           )}
 
           {wholesalers.length === 0 ? (
-            <div className="bg-white rounded-2xl p-8 text-center">
-              <p className="text-4xl mb-3">🏭</p>
-              <p className="text-slate-400 text-sm font-bold">Aucun grossiste configuré</p>
+            <div className="bg-white rounded-xl p-8 text-center border border-[#DDE4EA]">
+              <p className="text-3xl mb-2">🏭</p>
+              <p className="text-[#667085] text-sm font-medium">Aucun grossiste configuré</p>
             </div>
           ) : (
             wholesalers.map(w => (
-              <div key={w.id} className="bg-white rounded-2xl p-4 border-l-4 border-teal-400">
+              <div key={w.id} className="bg-white rounded-xl p-4 border border-[#DDE4EA]" style={{ borderLeft: '2px solid #087F5B' }}>
                 <div className="flex items-start justify-between gap-3">
                   <div className="flex-1">
-                    <p className="font-black text-blue-950">{w.nom}</p>
-                    {w.code && <p className="text-xs text-slate-400">Code: {w.code}</p>}
-                    <span className="text-xs bg-blue-50 text-blue-600 font-bold px-2 py-0.5 rounded-full">
+                    <p className="font-semibold text-[#172B4D]">{w.nom}</p>
+                    {w.code && <p className="text-xs text-[#667085]">Code: {w.code}</p>}
+                    <span className="text-xs bg-[#E8F0FE] text-[#2563EB] font-semibold px-2 py-0.5 rounded-full">
                       {TYPES[w.type]}
                     </span>
-                    {w.contact_nom && <p className="text-xs text-slate-400 mt-1">👤 {w.contact_nom}</p>}
-                    {w.contact_telephone && <p className="text-xs text-slate-400">📞 {w.contact_telephone}</p>}
+                    {w.contact_nom && <p className="text-xs text-[#667085] mt-1">👤 {w.contact_nom}</p>}
+                    {w.contact_telephone && <p className="text-xs text-[#667085]">📞 {w.contact_telephone}</p>}
                   </div>
                   <div className="flex gap-2">
                     <button onClick={() => { setShowMapping(w); setTab('mapping') }}
-                      className="bg-blue-50 text-blue-600 px-3 py-1.5 rounded-lg text-xs font-bold">
-                      🔗 Mapper
+                      className="bg-[#E8F0FE] text-[#2563EB] px-3 py-1.5 rounded-lg text-xs font-semibold">
+                      Mapper
                     </button>
                     <button onClick={() => handleDeleteWholesaler(w.id)}
-                      className="bg-rose-50 text-rose-500 px-3 py-1.5 rounded-lg text-xs font-bold">
+                      className="bg-[#FDE8E8] text-[#DC2626] px-3 py-1.5 rounded-lg text-xs font-semibold">
                       🗑️
                     </button>
                   </div>
@@ -361,15 +311,13 @@ export default function GestionVentes({ onBack, profile }) {
         </div>
       )}
 
-      {/* MAPPING */}
       {tab === 'mapping' && (
-        <div className="p-6 flex flex-col gap-4 pb-10">
+        <div className="p-5 flex flex-col gap-4 pb-10">
           <div>
-            <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Grossiste</label>
-            <select
-              value={showMapping?.id || ''}
+            <label className="text-xs font-medium text-[#667085] uppercase tracking-wide">Grossiste</label>
+            <select value={showMapping?.id || ''}
               onChange={e => setShowMapping(wholesalers.find(w => w.id === e.target.value))}
-              className="w-full mt-1 p-3 rounded-xl border border-slate-200 bg-white text-sm">
+              className="w-full mt-1 p-3 rounded-lg border border-[#DDE4EA] bg-white text-sm text-[#172B4D]">
               <option value="">Sélectionner un grossiste...</option>
               {wholesalers.map(w => <option key={w.id} value={w.id}>{w.nom}</option>)}
             </select>
@@ -377,52 +325,52 @@ export default function GestionVentes({ onBack, profile }) {
 
           {showMapping && (
             <>
-              <div className="bg-white rounded-2xl p-4">
-                <p className="text-xs font-black text-blue-950 uppercase tracking-wider mb-3">
+              <div className="bg-white rounded-xl p-4 border border-[#DDE4EA]">
+                <p className="text-xs font-semibold text-[#172B4D] uppercase tracking-wide mb-3">
                   Ajouter un mapping
                 </p>
                 <div className="flex flex-col gap-3">
                   <select value={mappingForm.produit_id}
                     onChange={e => setMappingForm(f => ({ ...f, produit_id: e.target.value }))}
-                    className="w-full p-3 rounded-xl border border-slate-200 bg-slate-50 text-sm">
+                    className="w-full p-3 rounded-lg border border-[#DDE4EA] bg-white text-sm text-[#172B4D]">
                     <option value="">Produit MedTrack...</option>
                     {produits.map(p => <option key={p.id} value={p.id}>{p.nom}</option>)}
                   </select>
                   <input value={mappingForm.external_code}
                     onChange={e => setMappingForm(f => ({ ...f, external_code: e.target.value }))}
-                    className="w-full p-3 rounded-xl border border-slate-200 bg-slate-50 text-sm"
+                    className="w-full p-3 rounded-lg border border-[#DDE4EA] bg-white text-sm text-[#172B4D]"
                     placeholder="Code chez le grossiste (ex: 45892)" />
                   <input value={mappingForm.external_name}
                     onChange={e => setMappingForm(f => ({ ...f, external_name: e.target.value }))}
-                    className="w-full p-3 rounded-xl border border-slate-200 bg-slate-50 text-sm"
+                    className="w-full p-3 rounded-lg border border-[#DDE4EA] bg-white text-sm text-[#172B4D]"
                     placeholder="Nom chez le grossiste (optionnel)" />
                   <button onClick={handleSaveMapping} disabled={saving}
-                    className="w-full bg-teal-400 text-blue-950 font-black py-3 rounded-xl text-sm">
+                    className="w-full bg-[#087F5B] text-white font-semibold py-3 rounded-lg text-sm">
                     {saving ? '...' : '+ Ajouter le mapping'}
                   </button>
                 </div>
               </div>
 
               <div>
-                <p className="text-xs font-black text-slate-400 uppercase tracking-wider mb-2">
+                <p className="text-xs font-semibold text-[#667085] uppercase tracking-wide mb-2">
                   Mappings existants — {showMapping.nom}
                 </p>
                 {externalCodes.filter(ec => ec.wholesaler_id === showMapping.id).length === 0 ? (
-                  <div className="bg-white rounded-2xl p-6 text-center">
-                    <p className="text-slate-400 text-sm">Aucun mapping configuré</p>
+                  <div className="bg-white rounded-xl p-6 text-center border border-[#DDE4EA]">
+                    <p className="text-[#667085] text-sm">Aucun mapping configuré</p>
                   </div>
                 ) : (
                   externalCodes.filter(ec => ec.wholesaler_id === showMapping.id).map(ec => (
-                    <div key={ec.id} className="bg-white rounded-2xl p-3 mb-2 flex items-center justify-between">
+                    <div key={ec.id} className="bg-white rounded-xl p-3 mb-2 flex items-center justify-between border border-[#DDE4EA]">
                       <div>
-                        <p className="font-bold text-blue-950 text-sm">{ec.produits?.nom}</p>
-                        <p className="text-xs text-slate-400">Code: {ec.external_code}</p>
-                        {ec.external_name && <p className="text-xs text-slate-400">{ec.external_name}</p>}
+                        <p className="font-medium text-[#172B4D] text-sm">{ec.produits?.nom}</p>
+                        <p className="text-xs text-[#667085]">Code: {ec.external_code}</p>
+                        {ec.external_name && <p className="text-xs text-[#667085]">{ec.external_name}</p>}
                       </div>
                       <button onClick={async () => {
                         await supabase.from('product_external_codes').delete().eq('id', ec.id)
                         fetchAll()
-                      }} className="bg-rose-50 text-rose-500 px-3 py-1.5 rounded-lg text-xs font-bold">
+                      }} className="bg-[#FDE8E8] text-[#DC2626] px-3 py-1.5 rounded-lg text-xs font-semibold">
                         🗑️
                       </button>
                     </div>
@@ -434,20 +382,19 @@ export default function GestionVentes({ onBack, profile }) {
         </div>
       )}
 
-      {/* IMPORT */}
       {tab === 'import' && (
-        <div className="p-6 flex flex-col gap-4 pb-10">
-          <div className="bg-blue-50 border border-blue-200 rounded-2xl p-4">
-            <p className="text-xs text-blue-700 font-bold mb-1">📋 Format CSV/Excel attendu</p>
-            <p className="text-xs text-blue-600">Colonnes : Code, Nom, Quantité, Prix, Date</p>
-            <p className="text-xs text-blue-600 mt-1">Ex: 45892 | Doliprane 500mg | 120 | 450 | 2025-01-15</p>
+        <div className="p-5 flex flex-col gap-4 pb-10">
+          <div className="bg-[#E8F0FE] border border-[#2563EB]/20 rounded-xl p-4">
+            <p className="text-xs text-[#2563EB] font-semibold mb-1">📋 Format CSV/Excel attendu</p>
+            <p className="text-xs text-[#2563EB]">Colonnes : Code, Nom, Quantité, Prix, Date</p>
+            <p className="text-xs text-[#2563EB] mt-1">Ex: 45892 | Doliprane 500mg | 120 | 450 | 2025-01-15</p>
           </div>
 
           <div>
-            <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Grossiste *</label>
+            <label className="text-xs font-medium text-[#667085] uppercase tracking-wide">Grossiste *</label>
             <select value={selectedWholesaler || ''}
               onChange={e => setSelectedWholesaler(e.target.value)}
-              className="w-full mt-1 p-3 rounded-xl border border-slate-200 bg-white text-sm">
+              className="w-full mt-1 p-3 rounded-lg border border-[#DDE4EA] bg-white text-sm text-[#172B4D]">
               <option value="">Sélectionner...</option>
               {wholesalers.map(w => <option key={w.id} value={w.id}>{w.nom}</option>)}
             </select>
@@ -455,18 +402,18 @@ export default function GestionVentes({ onBack, profile }) {
 
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Mois</label>
+              <label className="text-xs font-medium text-[#667085] uppercase tracking-wide">Mois</label>
               <select value={importPeriod.month}
                 onChange={e => setImportPeriod(p => ({ ...p, month: parseInt(e.target.value) }))}
-                className="w-full mt-1 p-3 rounded-xl border border-slate-200 bg-white text-sm">
+                className="w-full mt-1 p-3 rounded-lg border border-[#DDE4EA] bg-white text-sm text-[#172B4D]">
                 {MONTHS.map((m, i) => <option key={i + 1} value={i + 1}>{m}</option>)}
               </select>
             </div>
             <div>
-              <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Année</label>
+              <label className="text-xs font-medium text-[#667085] uppercase tracking-wide">Année</label>
               <input type="number" value={importPeriod.year}
                 onChange={e => setImportPeriod(p => ({ ...p, year: parseInt(e.target.value) }))}
-                className="w-full mt-1 p-3 rounded-xl border border-slate-200 bg-white text-sm" />
+                className="w-full mt-1 p-3 rounded-lg border border-[#DDE4EA] bg-white text-sm text-[#172B4D]" />
             </div>
           </div>
 
@@ -475,35 +422,29 @@ export default function GestionVentes({ onBack, profile }) {
             className="hidden" />
 
           <button onClick={() => fileRef.current.click()} disabled={importing || !selectedWholesaler}
-            className={`w-full font-black py-4 rounded-2xl text-sm ${
-              !selectedWholesaler ? 'bg-slate-200 text-slate-400' : 'bg-teal-400 text-blue-950'
+            className={`w-full font-semibold py-4 rounded-xl text-sm ${
+              !selectedWholesaler ? 'bg-[#EEF1F4] text-[#98A2B3]' : 'bg-[#087F5B] text-white'
             }`}>
             {importing ? '⏳ Import en cours...' : '📥 Importer un fichier CSV/Excel'}
           </button>
 
-          {/* Historique imports */}
-          <p className="text-xs font-black text-slate-400 uppercase tracking-wider mt-2">Historique imports</p>
+          <p className="text-xs font-semibold text-[#667085] uppercase tracking-wide mt-2">Historique imports</p>
           {imports.length === 0 ? (
-            <div className="bg-white rounded-2xl p-6 text-center">
-              <p className="text-slate-400 text-sm">Aucun import effectué</p>
+            <div className="bg-white rounded-xl p-6 text-center border border-[#DDE4EA]">
+              <p className="text-[#667085] text-sm">Aucun import effectué</p>
             </div>
           ) : (
             imports.map(i => (
-              <div key={i.id} className={`bg-white rounded-2xl p-4 border-l-4 ${
-                i.statut === 'completed' ? 'border-teal-400' :
-                i.statut === 'failed' ? 'border-rose-400' : 'border-amber-400'
-              }`}>
+              <div key={i.id} className="bg-white rounded-xl p-4 border border-[#DDE4EA]" style={{ borderLeft: `2px solid ${i.statut === 'completed' ? '#087F5B' : i.statut === 'failed' ? '#DC2626' : '#F59E0B'}` }}>
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="font-black text-blue-950 text-sm">{i.wholesalers?.nom}</p>
-                    <p className="text-xs text-slate-400">
-                      {MONTHS[i.period_month - 1]} {i.period_year}
-                    </p>
+                    <p className="font-semibold text-[#172B4D] text-sm">{i.wholesalers?.nom}</p>
+                    <p className="text-xs text-[#667085]">{MONTHS[i.period_month - 1]} {i.period_year}</p>
                   </div>
                   <div className="text-right">
-                    <p className="text-xs font-bold text-teal-500">{i.valid_lines} valides</p>
+                    <p className="text-xs font-semibold text-[#087F5B]">{i.valid_lines} valides</p>
                     {i.error_lines > 0 && (
-                      <p className="text-xs font-bold text-rose-500">{i.error_lines} erreurs</p>
+                      <p className="text-xs font-semibold text-[#DC2626]">{i.error_lines} erreurs</p>
                     )}
                   </div>
                 </div>
@@ -513,48 +454,44 @@ export default function GestionVentes({ onBack, profile }) {
         </div>
       )}
 
-      {/* VENTES AGRÉGÉES */}
       {tab === 'ventes' && (
-        <div className="p-6 flex flex-col gap-3 pb-10">
-          <p className="text-xs font-black text-slate-400 uppercase tracking-wider">
+        <div className="p-5 flex flex-col gap-3 pb-10">
+          <p className="text-xs font-semibold text-[#667085] uppercase tracking-wide">
             Ventes consolidées par produit
           </p>
 
           {aggregated.length === 0 ? (
-            <div className="bg-white rounded-2xl p-8 text-center">
-              <p className="text-4xl mb-3">📊</p>
-              <p className="text-slate-400 text-sm font-bold">Aucune donnée de vente</p>
-              <p className="text-slate-300 text-xs mt-1">Importez des fichiers depuis l'onglet Import</p>
+            <div className="bg-white rounded-xl p-8 text-center border border-[#DDE4EA]">
+              <p className="text-3xl mb-2">📊</p>
+              <p className="text-[#667085] text-sm font-medium">Aucune donnée de vente</p>
+              <p className="text-[#98A2B3] text-xs mt-1">Importez des fichiers depuis l'onglet Import</p>
             </div>
           ) : (
             <>
-              {/* Total global */}
-              <div className="bg-blue-950 rounded-2xl p-4">
-                <p className="text-teal-400 text-xs font-bold uppercase tracking-wider mb-2">Total consolidé</p>
-                <p className="text-white text-3xl font-black">
+              <div className="bg-[#172B4D] rounded-xl p-4">
+                <p className="text-[#9AA9C2] text-xs font-semibold uppercase tracking-wide mb-1">Total consolidé</p>
+                <p className="text-white text-3xl font-semibold">
                   {aggregated.reduce((sum, a) => sum + a.total_quantity, 0).toLocaleString()}
                 </p>
-                <p className="text-teal-400 text-xs font-bold mt-1">unités vendues tous grossistes</p>
+                <p className="text-[#9AA9C2] text-xs mt-1">unités vendues tous grossistes</p>
               </div>
 
               {aggregated.map(a => (
-                <div key={a.id} className="bg-white rounded-2xl p-4 border-l-4 border-teal-400">
+                <div key={a.id} className="bg-white rounded-xl p-4 border border-[#DDE4EA]" style={{ borderLeft: '2px solid #087F5B' }}>
                   <div className="flex items-center justify-between mb-1">
                     <div className="flex-1 min-w-0">
-                      <p className="font-black text-blue-950 text-sm truncate">{a.produits?.nom}</p>
-                      <p className="text-xs text-slate-400">
+                      <p className="font-semibold text-[#172B4D] text-sm truncate">{a.produits?.nom}</p>
+                      <p className="text-xs text-[#667085]">
                         {MONTHS[a.period_month - 1]} {a.period_year} · {a.wholesaler_count} grossiste{a.wholesaler_count > 1 ? 's' : ''}
                       </p>
                     </div>
                     <div className="text-right flex-shrink-0 ml-3">
-                      <p className="font-black text-teal-500 text-xl">{a.total_quantity.toLocaleString()}</p>
-                      <p className="text-xs text-slate-400">unités</p>
+                      <p className="font-semibold text-[#087F5B] text-xl">{a.total_quantity.toLocaleString()}</p>
+                      <p className="text-xs text-[#98A2B3]">unités</p>
                     </div>
                   </div>
                   {a.total_amount > 0 && (
-                    <p className="text-xs text-slate-400 font-bold">
-                      💰 {a.total_amount.toLocaleString()} XOF
-                    </p>
+                    <p className="text-xs text-[#667085] font-medium">💰 {a.total_amount.toLocaleString()} XOF</p>
                   )}
                 </div>
               ))}

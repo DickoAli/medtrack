@@ -27,11 +27,14 @@ export default function PlanificationVisites({ onBack, profile }) {
     coaching: 'Coaching', followup: 'Suivi', unplanned: 'Non planifiée'
   }
   const STATUT_COLORS = {
-    pending: 'bg-amber-100 text-amber-600',
-    confirmed: 'bg-teal-100 text-teal-600',
-    done: 'bg-blue-100 text-blue-600',
-    cancelled: 'bg-rose-100 text-rose-500',
-    rescheduled: 'bg-purple-100 text-purple-600'
+    pending: 'bg-[#FEF3E2] text-[#B45309]',
+    confirmed: 'bg-[#E7F5EF] text-[#087F5B]',
+    done: 'bg-[#E8F0FE] text-[#2563EB]',
+    cancelled: 'bg-[#FDE8E8] text-[#DC2626]',
+    rescheduled: 'bg-[#EEF1F4] text-[#667085]'
+  }
+  const STATUT_BORDER = {
+    pending: '#F59E0B', confirmed: '#087F5B', done: '#2563EB', cancelled: '#DC2626', rescheduled: '#98A2B3'
   }
   const STATUT_LABELS = {
     pending: 'En attente', confirmed: 'Confirmée',
@@ -49,7 +52,7 @@ export default function PlanificationVisites({ onBack, profile }) {
       supabase.from('delegates').select('*').eq('agence_id', profile.agence_id).order('nom'),
       supabase.from('campaigns').select('*, laboratoires(nom)').eq('agence_id', profile.agence_id).eq('statut', 'active'),
       supabase.from('delegate_portfolios')
-        .select('*, healthcare_professionals(id, nom, prenom, potential, specialite)')
+        .select('*, commercial_targets(priority, healthcare_professionals(id, nom, prenom, specialite))')
         .eq('agence_id', profile.agence_id),
       supabase.from('establishments').select('*').eq('agence_id', profile.agence_id).eq('is_active', true).order('nom')
     ])
@@ -71,7 +74,6 @@ export default function PlanificationVisites({ onBack, profile }) {
     companion_id: '', notes: ''
   })
 
-  // Cibles disponibles selon délégué sélectionné
   const ciblesDelegate = portfolios.filter(p => p.delegate_id === form.delegate_id)
 
   const handleSave = async () => {
@@ -151,65 +153,59 @@ export default function PlanificationVisites({ onBack, profile }) {
   const pastPlans = filtered.filter(p => p.planned_date < today)
 
   if (loading) return (
-    <div className="min-h-screen bg-slate-100 flex items-center justify-center">
-      <p className="text-teal-500 font-bold">Chargement...</p>
+    <div className="min-h-screen bg-[#F4F7F9] flex items-center justify-center">
+      <p className="text-[#087F5B] font-medium">Chargement...</p>
     </div>
   )
 
   const PlanCard = ({ p }) => (
-    <div className={`bg-white rounded-2xl p-4 border-l-4 ${
-      p.statut === 'confirmed' ? 'border-teal-400' :
-      p.statut === 'done' ? 'border-blue-400' :
-      p.statut === 'cancelled' ? 'border-rose-400' :
-      p.statut === 'rescheduled' ? 'border-purple-400' : 'border-amber-400'
-    }`}>
+    <div className="bg-white rounded-xl p-4 border border-[#DDE4EA]" style={{ borderLeft: `2px solid ${STATUT_BORDER[p.statut]}` }}>
       <div className="flex items-start justify-between gap-3">
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 flex-wrap mb-1">
-            <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${STATUT_COLORS[p.statut]}`}>
+            <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${STATUT_COLORS[p.statut]}`}>
               {STATUT_LABELS[p.statut]}
             </span>
-            <span className="text-xs bg-slate-100 text-slate-500 font-bold px-2 py-0.5 rounded-full">
+            <span className="text-xs bg-[#EEF1F4] text-[#667085] font-semibold px-2 py-0.5 rounded-full">
               {VISIT_TYPES[p.visit_type]}
             </span>
           </div>
 
-          <p className="font-black text-blue-950 text-sm">
+          <p className="font-semibold text-[#172B4D] text-sm">
             {p.healthcare_professionals?.prenom} {p.healthcare_professionals?.nom}
           </p>
-          <p className="text-xs text-slate-400">
+          <p className="text-xs text-[#667085]">
             👤 {p.delegates?.prenom} {p.delegates?.nom}
           </p>
           {p.establishments && (
-            <p className="text-xs text-slate-400">🏥 {p.establishments.nom}</p>
+            <p className="text-xs text-[#667085]">🏥 {p.establishments.nom}</p>
           )}
           {p.campaigns && (
-            <p className="text-xs text-slate-400">🎯 {p.campaigns.nom}</p>
+            <p className="text-xs text-[#667085]">🎯 {p.campaigns.nom}</p>
           )}
           <div className="flex gap-2 mt-1 flex-wrap">
-            <span className="text-xs font-bold text-blue-950">
+            <span className="text-xs font-semibold text-[#172B4D]">
               📅 {new Date(p.planned_date).toLocaleDateString('fr-FR')}
               {p.planned_time && ` à ${p.planned_time.slice(0, 5)}`}
             </span>
             {p.planned_duration && (
-              <span className="text-xs text-slate-400">⏱ {p.planned_duration} min</span>
+              <span className="text-xs text-[#667085]">⏱ {p.planned_duration} min</span>
             )}
           </div>
-          {p.notes && <p className="text-xs text-slate-400 italic mt-1">{p.notes}</p>}
+          {p.notes && <p className="text-xs text-[#667085] italic mt-1">{p.notes}</p>}
 
-          {/* Actions */}
           {p.statut === 'pending' && (
             <div className="flex gap-2 mt-2">
               <button onClick={() => changeStatut(p.id, 'confirmed')}
-                className="text-xs bg-teal-50 text-teal-600 font-bold px-2 py-1 rounded-lg">
+                className="text-xs bg-[#E7F5EF] text-[#087F5B] font-semibold px-2 py-1 rounded-lg">
                 ✓ Confirmer
               </button>
               <button onClick={() => changeStatut(p.id, 'cancelled')}
-                className="text-xs bg-rose-50 text-rose-500 font-bold px-2 py-1 rounded-lg">
+                className="text-xs bg-[#FDE8E8] text-[#DC2626] font-semibold px-2 py-1 rounded-lg">
                 ✕ Annuler
               </button>
               <button onClick={() => changeStatut(p.id, 'rescheduled')}
-                className="text-xs bg-purple-50 text-purple-600 font-bold px-2 py-1 rounded-lg">
+                className="text-xs bg-[#EEF1F4] text-[#667085] font-semibold px-2 py-1 rounded-lg">
                 ↻ Reprogrammer
               </button>
             </div>
@@ -218,47 +214,45 @@ export default function PlanificationVisites({ onBack, profile }) {
 
         <div className="flex gap-2 flex-shrink-0">
           <button onClick={() => handleEdit(p)}
-            className="bg-blue-50 text-blue-600 px-3 py-1.5 rounded-lg text-xs font-bold">✏️</button>
+            className="bg-[#E8F0FE] text-[#2563EB] px-3 py-1.5 rounded-lg text-xs font-semibold">✏️</button>
           <button onClick={() => handleDelete(p.id)}
-            className="bg-rose-50 text-rose-500 px-3 py-1.5 rounded-lg text-xs font-bold">🗑️</button>
+            className="bg-[#FDE8E8] text-[#DC2626] px-3 py-1.5 rounded-lg text-xs font-semibold">🗑️</button>
         </div>
       </div>
     </div>
   )
 
   return (
-    <div className="min-h-screen bg-slate-100">
-      {/* Header */}
-      <div className="bg-blue-950 px-6 py-4 flex items-center justify-between">
+    <div className="min-h-screen bg-[#F4F7F9]">
+      <div className="bg-[#172B4D] px-5 py-4 flex items-center justify-between">
         <div className="flex items-center gap-4">
           <button onClick={onBack} className="text-white text-xl">←</button>
           <div>
-            <h1 className="text-white font-black text-lg">Planification</h1>
-            <p className="text-teal-400 text-xs font-bold uppercase tracking-wider">
+            <h1 className="text-white font-semibold text-base">Planification</h1>
+            <p className="text-[#9AA9C2] text-xs font-medium uppercase tracking-wide">
               {plans.length} visite{plans.length > 1 ? 's' : ''} planifiée{plans.length > 1 ? 's' : ''}
             </p>
           </div>
         </div>
         <button
           onClick={() => { setShowForm(true); setEditing(null); resetForm() }}
-          className="bg-teal-400 text-blue-950 px-4 py-2 rounded-xl font-black text-xs"
+          className="bg-[#087F5B] text-white px-4 py-2 rounded-lg font-semibold text-xs"
         >
           + Planifier
         </button>
       </div>
 
-      {/* Filtres */}
-      <div className="px-6 pt-4 flex flex-col gap-3">
+      <div className="px-5 pt-4 flex flex-col gap-3">
         <select value={filterDelegate} onChange={e => setFilterDelegate(e.target.value)}
-          className="w-full p-3 rounded-xl border border-slate-200 bg-white text-sm">
+          className="w-full p-3 rounded-lg border border-[#DDE4EA] bg-white text-sm text-[#172B4D]">
           <option value="tous">Tous les délégués</option>
           {delegates.map(d => <option key={d.id} value={d.id}>{d.prenom} {d.nom}</option>)}
         </select>
         <div className="flex gap-2 overflow-x-auto pb-1">
           {['tous', 'pending', 'confirmed', 'done', 'cancelled'].map(s => (
             <button key={s} onClick={() => setFilterStatut(s)}
-              className={`px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap border transition-colors ${
-                filterStatut === s ? 'bg-blue-950 text-white border-blue-950' : 'bg-white text-slate-500 border-slate-200'
+              className={`px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap border transition-colors ${
+                filterStatut === s ? 'bg-[#172B4D] text-white border-[#172B4D]' : 'bg-white text-[#667085] border-[#DDE4EA]'
               }`}>
               {s === 'tous' ? 'Tous' : STATUT_LABELS[s]}
             </button>
@@ -267,23 +261,22 @@ export default function PlanificationVisites({ onBack, profile }) {
       </div>
 
       {successMsg && (
-        <div className="mx-6 mt-4 bg-teal-50 border border-teal-200 rounded-2xl p-3 text-center">
-          <p className="text-teal-600 font-black text-sm">✅ {successMsg}</p>
+        <div className="mx-5 mt-4 bg-[#E7F5EF] border border-[#087F5B]/20 rounded-xl p-3 text-center">
+          <p className="text-[#087F5B] font-semibold text-sm">✅ {successMsg}</p>
         </div>
       )}
 
-      {/* Formulaire */}
       {showForm && (
-        <div className="fixed inset-0 bg-blue-950/60 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl p-6 w-full max-w-sm shadow-2xl max-h-screen overflow-y-auto">
-            <h2 className="font-black text-blue-950 text-lg mb-4">
+        <div className="fixed inset-0 bg-[#172B4D]/60 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl p-6 w-full max-w-sm shadow-2xl max-h-screen overflow-y-auto">
+            <h2 className="font-semibold text-[#172B4D] text-lg mb-4">
               {editing ? 'Modifier la planification' : 'Planifier une visite'}
             </h2>
             <div className="flex flex-col gap-4">
               <div>
-                <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Délégué *</label>
+                <label className="text-xs font-medium text-[#667085] uppercase tracking-wide">Délégué *</label>
                 <select value={form.delegate_id} onChange={e => { set('delegate_id', e.target.value); set('healthcare_professional_id', '') }}
-                  className="w-full mt-1 p-3 rounded-xl border border-slate-200 bg-slate-50 text-sm">
+                  className="w-full mt-1 p-3 rounded-lg border border-[#DDE4EA] bg-white text-sm text-[#172B4D]">
                   <option value="">Sélectionner...</option>
                   {delegates.map(d => <option key={d.id} value={d.id}>{d.prenom} {d.nom}</option>)}
                 </select>
@@ -291,15 +284,15 @@ export default function PlanificationVisites({ onBack, profile }) {
 
               {form.delegate_id && (
                 <div>
-                  <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">
+                  <label className="text-xs font-medium text-[#667085] uppercase tracking-wide">
                     Cible * ({ciblesDelegate.length} dans le portefeuille)
                   </label>
                   <select value={form.healthcare_professional_id} onChange={e => set('healthcare_professional_id', e.target.value)}
-                    className="w-full mt-1 p-3 rounded-xl border border-slate-200 bg-slate-50 text-sm">
+                    className="w-full mt-1 p-3 rounded-lg border border-[#DDE4EA] bg-white text-sm text-[#172B4D]">
                     <option value="">Sélectionner...</option>
-                    {ciblesDelegate.map(c => (
-                      <option key={c.id} value={c.healthcare_professionals.id}>
-                        [{c.healthcare_professionals.potential}] {c.healthcare_professionals.prenom} {c.healthcare_professionals.nom}
+                    {ciblesDelegate.filter(c => c.commercial_targets?.healthcare_professionals).map(c => (
+                      <option key={c.id} value={c.commercial_targets.healthcare_professionals.id}>
+                        [{c.priority}] {c.commercial_targets.healthcare_professionals.prenom} {c.commercial_targets.healthcare_professionals.nom}
                       </option>
                     ))}
                   </select>
@@ -307,26 +300,26 @@ export default function PlanificationVisites({ onBack, profile }) {
               )}
 
               <div>
-                <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Type de visite</label>
+                <label className="text-xs font-medium text-[#667085] uppercase tracking-wide">Type de visite</label>
                 <select value={form.visit_type} onChange={e => set('visit_type', e.target.value)}
-                  className="w-full mt-1 p-3 rounded-xl border border-slate-200 bg-slate-50 text-sm">
+                  className="w-full mt-1 p-3 rounded-lg border border-[#DDE4EA] bg-white text-sm text-[#172B4D]">
                   {Object.entries(VISIT_TYPES).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
                 </select>
               </div>
 
               <div>
-                <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Campagne</label>
+                <label className="text-xs font-medium text-[#667085] uppercase tracking-wide">Campagne</label>
                 <select value={form.campaign_id} onChange={e => set('campaign_id', e.target.value)}
-                  className="w-full mt-1 p-3 rounded-xl border border-slate-200 bg-slate-50 text-sm">
+                  className="w-full mt-1 p-3 rounded-lg border border-[#DDE4EA] bg-white text-sm text-[#172B4D]">
                   <option value="">Aucune</option>
                   {campagnes.map(c => <option key={c.id} value={c.id}>{c.nom}</option>)}
                 </select>
               </div>
 
               <div>
-                <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Établissement</label>
+                <label className="text-xs font-medium text-[#667085] uppercase tracking-wide">Établissement</label>
                 <select value={form.establishment_id} onChange={e => set('establishment_id', e.target.value)}
-                  className="w-full mt-1 p-3 rounded-xl border border-slate-200 bg-slate-50 text-sm">
+                  className="w-full mt-1 p-3 rounded-lg border border-[#DDE4EA] bg-white text-sm text-[#172B4D]">
                   <option value="">Sélectionner...</option>
                   {etablissements.map(e => <option key={e.id} value={e.id}>{e.nom}</option>)}
                 </select>
@@ -334,47 +327,47 @@ export default function PlanificationVisites({ onBack, profile }) {
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Date *</label>
+                  <label className="text-xs font-medium text-[#667085] uppercase tracking-wide">Date *</label>
                   <input type="date" value={form.planned_date} onChange={e => set('planned_date', e.target.value)}
-                    className="w-full mt-1 p-3 rounded-xl border border-slate-200 bg-slate-50 text-sm" />
+                    className="w-full mt-1 p-3 rounded-lg border border-[#DDE4EA] bg-white text-sm text-[#172B4D]" />
                 </div>
                 <div>
-                  <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Heure</label>
+                  <label className="text-xs font-medium text-[#667085] uppercase tracking-wide">Heure</label>
                   <input type="time" value={form.planned_time} onChange={e => set('planned_time', e.target.value)}
-                    className="w-full mt-1 p-3 rounded-xl border border-slate-200 bg-slate-50 text-sm" />
+                    className="w-full mt-1 p-3 rounded-lg border border-[#DDE4EA] bg-white text-sm text-[#172B4D]" />
                 </div>
               </div>
 
               <div>
-                <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Durée prévue (min)</label>
+                <label className="text-xs font-medium text-[#667085] uppercase tracking-wide">Durée prévue (min)</label>
                 <input type="number" value={form.planned_duration} onChange={e => set('planned_duration', e.target.value)}
-                  className="w-full mt-1 p-3 rounded-xl border border-slate-200 bg-slate-50 text-sm"
+                  className="w-full mt-1 p-3 rounded-lg border border-[#DDE4EA] bg-white text-sm text-[#172B4D]"
                   min="5" max="120" />
               </div>
 
-              {form.visit_type === 'accompanied' || form.visit_type === 'coaching' ? (
+              {(form.visit_type === 'accompanied' || form.visit_type === 'coaching') && (
                 <div>
-                  <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Manager accompagnateur</label>
+                  <label className="text-xs font-medium text-[#667085] uppercase tracking-wide">Manager accompagnateur</label>
                   <input value={form.companion_id} onChange={e => set('companion_id', e.target.value)}
-                    className="w-full mt-1 p-3 rounded-xl border border-slate-200 bg-slate-50 text-sm"
+                    className="w-full mt-1 p-3 rounded-lg border border-[#DDE4EA] bg-white text-sm text-[#172B4D]"
                     placeholder="ID du manager..." />
                 </div>
-              ) : null}
+              )}
 
               <div>
-                <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Notes</label>
+                <label className="text-xs font-medium text-[#667085] uppercase tracking-wide">Notes</label>
                 <textarea value={form.notes} onChange={e => set('notes', e.target.value)}
-                  className="w-full mt-1 p-3 rounded-xl border border-slate-200 bg-slate-50 text-sm h-16 resize-none"
+                  className="w-full mt-1 p-3 rounded-lg border border-[#DDE4EA] bg-white text-sm text-[#172B4D] h-16 resize-none"
                   placeholder="Instructions, objectifs..." />
               </div>
 
               <div className="flex gap-3">
                 <button onClick={() => { setShowForm(false); setEditing(null) }}
-                  className="flex-1 bg-slate-100 text-slate-600 font-black py-3 rounded-xl text-sm">
+                  className="flex-1 bg-[#EEF1F4] text-[#667085] font-semibold py-3 rounded-lg text-sm">
                   Annuler
                 </button>
                 <button onClick={handleSave} disabled={saving}
-                  className="flex-1 bg-teal-400 text-blue-950 font-black py-3 rounded-xl text-sm">
+                  className="flex-1 bg-[#087F5B] text-white font-semibold py-3 rounded-lg text-sm">
                   {saving ? 'Enregistrement...' : 'Planifier'}
                 </button>
               </div>
@@ -383,18 +376,17 @@ export default function PlanificationVisites({ onBack, profile }) {
         </div>
       )}
 
-      {/* Liste par période */}
-      <div className="p-6 flex flex-col gap-4 pb-10">
+      <div className="p-5 flex flex-col gap-4 pb-10">
         {filtered.length === 0 ? (
-          <div className="bg-white rounded-2xl p-8 text-center">
-            <p className="text-4xl mb-3">📅</p>
-            <p className="text-slate-400 text-sm font-bold">Aucune visite planifiée</p>
+          <div className="bg-white rounded-xl p-8 text-center border border-[#DDE4EA]">
+            <p className="text-3xl mb-2">📅</p>
+            <p className="text-[#667085] text-sm font-medium">Aucune visite planifiée</p>
           </div>
         ) : (
           <>
             {todayPlans.length > 0 && (
               <div>
-                <p className="text-xs font-black text-amber-500 uppercase tracking-wider mb-2">
+                <p className="text-xs font-semibold text-[#B45309] uppercase tracking-wide mb-2">
                   Aujourd'hui ({todayPlans.length})
                 </p>
                 <div className="flex flex-col gap-3">
@@ -404,7 +396,7 @@ export default function PlanificationVisites({ onBack, profile }) {
             )}
             {futurePlans.length > 0 && (
               <div>
-                <p className="text-xs font-black text-teal-500 uppercase tracking-wider mb-2">
+                <p className="text-xs font-semibold text-[#087F5B] uppercase tracking-wide mb-2">
                   À venir ({futurePlans.length})
                 </p>
                 <div className="flex flex-col gap-3">
@@ -414,7 +406,7 @@ export default function PlanificationVisites({ onBack, profile }) {
             )}
             {pastPlans.length > 0 && (
               <div>
-                <p className="text-xs font-black text-slate-400 uppercase tracking-wider mb-2">
+                <p className="text-xs font-semibold text-[#667085] uppercase tracking-wide mb-2">
                   Passées ({pastPlans.length})
                 </p>
                 <div className="flex flex-col gap-3">

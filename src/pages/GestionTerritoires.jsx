@@ -4,7 +4,6 @@ import { supabase } from '../supabase'
 export default function GestionTerritoires({ onBack, profile }) {
   const [territoires, setTerritoires] = useState([])
   const [geographies, setGeographies] = useState([])
-  const [regions, setRegions] = useState([])
   const [loading, setLoading] = useState(true)
   const [showForm, setShowForm] = useState(false)
   const [editing, setEditing] = useState(null)
@@ -31,7 +30,6 @@ export default function GestionTerritoires({ onBack, profile }) {
 
     setTerritoires(t || [])
     setGeographies(g || [])
-    setRegions(g?.filter(x => x.type === 'region') || [])
     setLoading(false)
   }
 
@@ -102,7 +100,6 @@ export default function GestionTerritoires({ onBack, profile }) {
     return map[type] || type
   }
 
-  // Grouper les géographies par type pour le select
   const geoGrouped = geographies.reduce((acc, g) => {
     if (!acc[g.type]) acc[g.type] = []
     acc[g.type].push(g)
@@ -110,20 +107,19 @@ export default function GestionTerritoires({ onBack, profile }) {
   }, {})
 
   if (loading) return (
-    <div className="min-h-screen bg-slate-100 flex items-center justify-center">
-      <p className="text-teal-500 font-bold">Chargement...</p>
+    <div className="min-h-screen bg-[#F4F7F9] flex items-center justify-center">
+      <p className="text-[#087F5B] font-medium">Chargement...</p>
     </div>
   )
 
   return (
-    <div className="min-h-screen bg-slate-100">
-      {/* Header */}
-      <div className="bg-blue-950 px-6 py-4 flex items-center justify-between">
+    <div className="min-h-screen bg-[#F4F7F9]">
+      <div className="bg-[#172B4D] px-5 py-4 flex items-center justify-between">
         <div className="flex items-center gap-4">
           <button onClick={onBack} className="text-white text-xl">←</button>
           <div>
-            <h1 className="text-white font-black text-lg">Territoires</h1>
-            <p className="text-teal-400 text-xs font-bold uppercase tracking-wider">
+            <h1 className="text-white font-semibold text-base">Territoires</h1>
+            <p className="text-[#9AA9C2] text-xs font-medium uppercase tracking-wide">
               Organisation commerciale
             </p>
           </div>
@@ -134,66 +130,64 @@ export default function GestionTerritoires({ onBack, profile }) {
             setEditing(null)
             setForm({ nom: '', code: '', geography_id: '', parent_territory_id: '' })
           }}
-          className="bg-teal-400 text-blue-950 px-4 py-2 rounded-xl font-black text-xs"
+          className="bg-[#087F5B] text-white px-4 py-2 rounded-lg font-semibold text-xs"
         >
           + Ajouter
         </button>
       </div>
 
-      {/* Info banner */}
-      <div className="mx-6 mt-4 bg-blue-50 border border-blue-200 rounded-2xl p-4">
-        <p className="text-xs text-blue-700 font-bold">
-          📌 Les territoires sont vos zones commerciales opérationnelles. 
+      <div className="mx-5 mt-4 bg-[#E8F0FE] border border-[#2563EB]/20 rounded-xl p-4">
+        <p className="text-xs text-[#2563EB] font-semibold">
+          📌 Les territoires sont vos zones commerciales opérationnelles.
           Rattachez-les aux régions, cercles ou communes du Mali selon votre organisation terrain.
         </p>
       </div>
 
       {successMsg && (
-        <div className="mx-6 mt-4 bg-teal-50 border border-teal-200 rounded-2xl p-4 text-center">
-          <p className="text-teal-600 font-black">✅ {successMsg}</p>
+        <div className="mx-5 mt-4 bg-[#E7F5EF] border border-[#087F5B]/20 rounded-xl p-4 text-center">
+          <p className="text-[#087F5B] font-semibold">✅ {successMsg}</p>
         </div>
       )}
 
-      {/* Formulaire */}
       {showForm && (
-        <div className="fixed inset-0 bg-blue-950/60 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl p-6 w-full max-w-sm shadow-2xl max-h-screen overflow-y-auto">
-            <h2 className="font-black text-blue-950 text-lg mb-4">
+        <div className="fixed inset-0 bg-[#172B4D]/60 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl p-6 w-full max-w-sm shadow-2xl max-h-screen overflow-y-auto">
+            <h2 className="font-semibold text-[#172B4D] text-lg mb-4">
               {editing ? 'Modifier le territoire' : 'Nouveau territoire'}
             </h2>
             <div className="flex flex-col gap-4">
               <div>
-                <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">
+                <label className="text-xs font-medium text-[#667085] uppercase tracking-wide">
                   Nom du territoire *
                 </label>
                 <input
                   value={form.nom}
                   onChange={(e) => set('nom', e.target.value)}
-                  className="w-full mt-1 p-3 rounded-xl border border-slate-200 bg-slate-50 text-sm"
+                  className="w-full mt-1 p-3 rounded-lg border border-[#DDE4EA] bg-white text-sm text-[#172B4D]"
                   placeholder="Ex: Zone Bamako Nord, Secteur Kayes..."
                 />
               </div>
 
               <div>
-                <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">
+                <label className="text-xs font-medium text-[#667085] uppercase tracking-wide">
                   Code (optionnel)
                 </label>
                 <input
                   value={form.code}
                   onChange={(e) => set('code', e.target.value)}
-                  className="w-full mt-1 p-3 rounded-xl border border-slate-200 bg-slate-50 text-sm"
+                  className="w-full mt-1 p-3 rounded-lg border border-[#DDE4EA] bg-white text-sm text-[#172B4D]"
                   placeholder="Ex: BKO-N, KAY-1..."
                 />
               </div>
 
               <div>
-                <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">
+                <label className="text-xs font-medium text-[#667085] uppercase tracking-wide">
                   Zone géographique correspondante *
                 </label>
                 <select
                   value={form.geography_id}
                   onChange={(e) => set('geography_id', e.target.value)}
-                  className="w-full mt-1 p-3 rounded-xl border border-slate-200 bg-slate-50 text-sm"
+                  className="w-full mt-1 p-3 rounded-lg border border-[#DDE4EA] bg-white text-sm text-[#172B4D]"
                 >
                   <option value="">Sélectionner une zone...</option>
                   {Object.entries(geoGrouped).map(([type, geos]) => (
@@ -207,13 +201,13 @@ export default function GestionTerritoires({ onBack, profile }) {
               </div>
 
               <div>
-                <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">
+                <label className="text-xs font-medium text-[#667085] uppercase tracking-wide">
                   Territoire parent (optionnel)
                 </label>
                 <select
                   value={form.parent_territory_id}
                   onChange={(e) => set('parent_territory_id', e.target.value)}
-                  className="w-full mt-1 p-3 rounded-xl border border-slate-200 bg-slate-50 text-sm"
+                  className="w-full mt-1 p-3 rounded-lg border border-[#DDE4EA] bg-white text-sm text-[#172B4D]"
                 >
                   <option value="">Aucun (territoire racine)</option>
                   {territoires
@@ -227,14 +221,14 @@ export default function GestionTerritoires({ onBack, profile }) {
               <div className="flex gap-3">
                 <button
                   onClick={() => { setShowForm(false); setEditing(null) }}
-                  className="flex-1 bg-slate-100 text-slate-600 font-black py-3 rounded-xl text-sm"
+                  className="flex-1 bg-[#EEF1F4] text-[#667085] font-semibold py-3 rounded-lg text-sm"
                 >
                   Annuler
                 </button>
                 <button
                   onClick={handleSave}
                   disabled={saving}
-                  className="flex-1 bg-teal-400 text-blue-950 font-black py-3 rounded-xl text-sm"
+                  className="flex-1 bg-[#087F5B] text-white font-semibold py-3 rounded-lg text-sm"
                 >
                   {saving ? 'Enregistrement...' : 'Enregistrer'}
                 </button>
@@ -244,13 +238,12 @@ export default function GestionTerritoires({ onBack, profile }) {
         </div>
       )}
 
-      {/* Liste */}
-      <div className="p-6 flex flex-col gap-3">
+      <div className="p-5 flex flex-col gap-3">
         {territoires.length === 0 ? (
-          <div className="bg-white rounded-2xl p-8 text-center">
-            <p className="text-4xl mb-3">🗺️</p>
-            <p className="text-slate-400 text-sm font-bold">Aucun territoire défini</p>
-            <p className="text-slate-300 text-xs mt-1">
+          <div className="bg-white rounded-xl p-8 text-center border border-[#DDE4EA]">
+            <p className="text-3xl mb-2">🗺️</p>
+            <p className="text-[#667085] text-sm font-medium">Aucun territoire défini</p>
+            <p className="text-[#98A2B3] text-xs mt-1">
               Créez vos zones commerciales pour organiser votre équipe terrain
             </p>
           </div>
@@ -258,32 +251,33 @@ export default function GestionTerritoires({ onBack, profile }) {
           territoires.map(t => (
             <div
               key={t.id}
-              className={`bg-white rounded-2xl p-4 border-l-4 ${t.is_active ? 'border-teal-400' : 'border-slate-200'}`}
+              className="bg-white rounded-xl p-4 border border-[#DDE4EA]"
+              style={{ borderLeft: `2px solid ${t.is_active ? '#087F5B' : '#DDE4EA'}` }}
             >
               <div className="flex items-start justify-between gap-3">
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 flex-wrap">
-                    <p className={`font-black text-blue-950 ${!t.is_active ? 'opacity-50' : ''}`}>
+                    <p className={`font-semibold text-[#172B4D] ${!t.is_active ? 'opacity-50' : ''}`}>
                       {t.nom}
                     </p>
                     {t.code && (
-                      <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-slate-100 text-slate-500">
+                      <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-[#EEF1F4] text-[#667085]">
                         {t.code}
                       </span>
                     )}
-                    <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${t.is_active ? 'bg-teal-100 text-teal-600' : 'bg-slate-100 text-slate-400'}`}>
+                    <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${t.is_active ? 'bg-[#E7F5EF] text-[#087F5B]' : 'bg-[#EEF1F4] text-[#98A2B3]'}`}>
                       {t.is_active ? 'Actif' : 'Inactif'}
                     </span>
                   </div>
 
                   {t.geographies && (
-                    <p className="text-xs text-slate-400 mt-1">
+                    <p className="text-xs text-[#667085] mt-1">
                       📍 {getTypeLabel(t.geographies.type)} — {t.geographies.nom}
                     </p>
                   )}
 
                   {t.parent_territory_id && (
-                    <p className="text-xs text-slate-400 mt-0.5">
+                    <p className="text-xs text-[#667085] mt-0.5">
                       🔗 Sous-territoire de {territoires.find(x => x.id === t.parent_territory_id)?.nom}
                     </p>
                   )}
@@ -292,19 +286,19 @@ export default function GestionTerritoires({ onBack, profile }) {
                 <div className="flex gap-2 flex-shrink-0">
                   <button
                     onClick={() => toggleActif(t)}
-                    className={`px-3 py-1.5 rounded-lg text-xs font-bold ${t.is_active ? 'bg-slate-100 text-slate-500' : 'bg-teal-50 text-teal-600'}`}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-semibold ${t.is_active ? 'bg-[#EEF1F4] text-[#667085]' : 'bg-[#E7F5EF] text-[#087F5B]'}`}
                   >
                     {t.is_active ? '⏸' : '▶'}
                   </button>
                   <button
                     onClick={() => handleEdit(t)}
-                    className="bg-blue-50 text-blue-600 px-3 py-1.5 rounded-lg text-xs font-bold"
+                    className="bg-[#E8F0FE] text-[#2563EB] px-3 py-1.5 rounded-lg text-xs font-semibold"
                   >
                     ✏️
                   </button>
                   <button
                     onClick={() => handleDelete(t.id)}
-                    className="bg-rose-50 text-rose-500 px-3 py-1.5 rounded-lg text-xs font-bold"
+                    className="bg-[#FDE8E8] text-[#DC2626] px-3 py-1.5 rounded-lg text-xs font-semibold"
                   >
                     🗑️
                   </button>

@@ -33,21 +33,21 @@ export default function Extranet({ onBack, profile }) {
     setSaving(true)
     const url = form.url.startsWith('http') ? form.url : `https://${form.url}`
     if (editing) {
-  await supabase.from('extranets').update({
-    nom: form.nom, url,
-    identifiant_enc: form.identifiant ? btoa(form.identifiant) : null,
-    mot_de_passe_enc: form.mot_de_passe ? btoa(form.mot_de_passe) : null,
-    note: form.note
-  }).eq('id', editing)
-} else {
-  await supabase.from('extranets').insert({
-    nom: form.nom, url,
-    identifiant_enc: form.identifiant ? btoa(form.identifiant) : null,
-    mot_de_passe_enc: form.mot_de_passe ? btoa(form.mot_de_passe) : null,
-    note: form.note,
-    agence_id: profile.agence_id
-  })
-}
+      await supabase.from('extranets').update({
+        nom: form.nom, url,
+        identifiant_enc: form.identifiant ? btoa(form.identifiant) : null,
+        mot_de_passe_enc: form.mot_de_passe ? btoa(form.mot_de_passe) : null,
+        note: form.note
+      }).eq('id', editing)
+    } else {
+      await supabase.from('extranets').insert({
+        nom: form.nom, url,
+        identifiant_enc: form.identifiant ? btoa(form.identifiant) : null,
+        mot_de_passe_enc: form.mot_de_passe ? btoa(form.mot_de_passe) : null,
+        note: form.note,
+        agence_id: profile.agence_id
+      })
+    }
     setSaving(false)
     setShowForm(false)
     setEditing(null)
@@ -70,39 +70,39 @@ export default function Extranet({ onBack, profile }) {
   }
 
   const decrypt = (encrypted) => {
-  if (!encrypted) return ''
-  try {
-    return atob(encrypted)
-  } catch {
-    return encrypted
+    if (!encrypted) return ''
+    try {
+      return atob(encrypted)
+    } catch {
+      return encrypted
+    }
   }
-}
 
-const handleOpen = (extranet) => {
-  if (extranet.identifiant_enc || extranet.mot_de_passe_enc) {
-    setShowCredentials({
-      ...extranet,
-      identifiant_dec: decrypt(extranet.identifiant_enc),
-      mot_de_passe_dec: decrypt(extranet.mot_de_passe_enc)
-    })
-    setShowPassword(false)
-  } else {
-    window.open(extranet.url, '_blank')
+  const handleOpen = (extranet) => {
+    if (extranet.identifiant_enc || extranet.mot_de_passe_enc) {
+      setShowCredentials({
+        ...extranet,
+        identifiant_dec: decrypt(extranet.identifiant_enc),
+        mot_de_passe_dec: decrypt(extranet.mot_de_passe_enc)
+      })
+      setShowPassword(false)
+    } else {
+      window.open(extranet.url, '_blank')
+    }
   }
-}
 
   if (loading) return (
-    <div className="min-h-screen bg-slate-100 flex items-center justify-center">
-      <p className="text-teal-500 font-bold">Chargement...</p>
+    <div className="min-h-screen bg-[#F4F7F9] flex items-center justify-center">
+      <p className="text-[#087F5B] font-medium">Chargement...</p>
     </div>
   )
 
   return (
-    <div className="min-h-screen bg-slate-100">
-      <div className="bg-blue-950 px-6 py-4 flex items-center justify-between">
+    <div className="min-h-screen bg-[#F4F7F9]">
+      <div className="bg-[#172B4D] px-5 py-4 flex items-center justify-between">
         <div className="flex items-center gap-4">
           <button onClick={onBack} className="text-white text-xl">←</button>
-          <h1 className="text-white font-black">Extranet</h1>
+          <h1 className="text-white font-semibold text-base">Extranet</h1>
         </div>
         {profile.role === 'manager' && (
           <button
@@ -111,7 +111,7 @@ const handleOpen = (extranet) => {
               setEditing(null)
               setForm({ nom: '', url: '', identifiant: '', mot_de_passe: '', note: '' })
             }}
-            className="bg-teal-400 text-blue-950 px-4 py-2 rounded-xl font-black text-xs"
+            className="bg-[#087F5B] text-white px-4 py-2 rounded-lg font-semibold text-xs"
           >
             + Ajouter
           </button>
@@ -119,65 +119,62 @@ const handleOpen = (extranet) => {
       </div>
 
       {successMsg && (
-        <div className="mx-6 mt-4 bg-teal-50 border border-teal-200 rounded-2xl p-4 text-center">
-          <p className="text-teal-600 font-black">✅ {successMsg}</p>
+        <div className="mx-5 mt-4 bg-[#E7F5EF] border border-[#087F5B]/20 rounded-xl p-4 text-center">
+          <p className="text-[#087F5B] font-semibold">✅ {successMsg}</p>
         </div>
       )}
 
-      {/* Modal identifiants */}
       {showCredentials && (
-        <div className="fixed inset-0 bg-blue-950/60 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl p-6 w-full max-w-sm shadow-2xl">
-            <h2 className="font-black text-blue-950 text-lg mb-1">{showCredentials.nom}</h2>
-            <p className="text-xs text-slate-400 mb-4">{showCredentials.url}</p>
+        <div className="fixed inset-0 bg-[#172B4D]/60 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl p-6 w-full max-w-sm shadow-2xl">
+            <h2 className="font-semibold text-[#172B4D] text-lg mb-1">{showCredentials.nom}</h2>
+            <p className="text-xs text-[#98A2B3] mb-4">{showCredentials.url}</p>
 
             <div className="flex flex-col gap-3 mb-4">
-              {/* Identifiant */}
-<div className="bg-slate-50 rounded-xl p-3">
-  <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Identifiant</p>
-  <div className="flex items-center justify-between">
-    <p className="font-black text-blue-950">{showCredentials.identifiant_dec}</p>
-    <button
-      onClick={() => {
-        navigator.clipboard.writeText(showCredentials.identifiant_dec)
-        alert('Identifiant copié !')
-      }}
-      className="bg-blue-50 text-blue-600 px-2 py-1 rounded-lg text-xs font-bold"
-    >
-      Copier
-    </button>
-  </div>
-</div>
+              <div className="bg-[#F4F7F9] rounded-xl p-3">
+                <p className="text-xs font-medium text-[#98A2B3] uppercase tracking-wide mb-1">Identifiant</p>
+                <div className="flex items-center justify-between">
+                  <p className="font-semibold text-[#172B4D]">{showCredentials.identifiant_dec}</p>
+                  <button
+                    onClick={() => {
+                      navigator.clipboard.writeText(showCredentials.identifiant_dec)
+                      alert('Identifiant copié !')
+                    }}
+                    className="bg-[#E8F0FE] text-[#2563EB] px-2 py-1 rounded-lg text-xs font-semibold"
+                  >
+                    Copier
+                  </button>
+                </div>
+              </div>
 
-{/* Mot de passe */}
-<div className="bg-slate-50 rounded-xl p-3">
-  <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Mot de passe</p>
-  <div className="flex items-center justify-between gap-2">
-    <p className="font-black text-blue-950 flex-1">
-      {showPassword ? showCredentials.mot_de_passe_dec : '••••••••••'}
-    </p>
-    <button
-      onClick={() => setShowPassword(!showPassword)}
-      className="bg-slate-100 text-slate-500 px-2 py-1 rounded-lg text-xs font-bold"
-    >
-      {showPassword ? '🙈' : '👁️'}
-    </button>
-    <button
-      onClick={() => {
-        navigator.clipboard.writeText(showCredentials.mot_de_passe_dec)
-        alert('Mot de passe copié !')
-      }}
-      className="bg-blue-50 text-blue-600 px-2 py-1 rounded-lg text-xs font-bold"
-    >
-      Copier
-    </button>
-  </div>
-</div>
+              <div className="bg-[#F4F7F9] rounded-xl p-3">
+                <p className="text-xs font-medium text-[#98A2B3] uppercase tracking-wide mb-1">Mot de passe</p>
+                <div className="flex items-center justify-between gap-2">
+                  <p className="font-semibold text-[#172B4D] flex-1">
+                    {showPassword ? showCredentials.mot_de_passe_dec : '••••••••••'}
+                  </p>
+                  <button
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="bg-[#EEF1F4] text-[#667085] px-2 py-1 rounded-lg text-xs font-semibold"
+                  >
+                    {showPassword ? '🙈' : '👁️'}
+                  </button>
+                  <button
+                    onClick={() => {
+                      navigator.clipboard.writeText(showCredentials.mot_de_passe_dec)
+                      alert('Mot de passe copié !')
+                    }}
+                    className="bg-[#E8F0FE] text-[#2563EB] px-2 py-1 rounded-lg text-xs font-semibold"
+                  >
+                    Copier
+                  </button>
+                </div>
+              </div>
 
               {showCredentials.note && (
-                <div className="bg-amber-50 rounded-xl p-3">
-                  <p className="text-xs font-bold text-amber-500 uppercase tracking-wider mb-1">Note</p>
-                  <p className="text-xs text-slate-600">{showCredentials.note}</p>
+                <div className="bg-[#FEF3E2] rounded-xl p-3">
+                  <p className="text-xs font-medium text-[#B45309] uppercase tracking-wide mb-1">Note</p>
+                  <p className="text-xs text-[#667085]">{showCredentials.note}</p>
                 </div>
               )}
             </div>
@@ -187,13 +184,13 @@ const handleOpen = (extranet) => {
                 window.open(showCredentials.url, '_blank')
                 setShowCredentials(null)
               }}
-              className="w-full bg-teal-400 text-blue-950 font-black py-3 rounded-xl text-sm mb-2"
+              className="w-full bg-[#087F5B] text-white font-semibold py-3 rounded-lg text-sm mb-2"
             >
               🌐 Ouvrir le site extranet
             </button>
             <button
               onClick={() => setShowCredentials(null)}
-              className="w-full bg-slate-100 text-slate-500 font-black py-3 rounded-xl text-sm"
+              className="w-full bg-[#EEF1F4] text-[#667085] font-semibold py-3 rounded-lg text-sm"
             >
               Fermer
             </button>
@@ -201,51 +198,50 @@ const handleOpen = (extranet) => {
         </div>
       )}
 
-      {/* Formulaire */}
       {showForm && (
-        <div className="fixed inset-0 bg-blue-950/60 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl p-6 w-full max-w-sm shadow-2xl max-h-screen overflow-y-auto">
-            <h2 className="font-black text-blue-950 text-lg mb-4">
+        <div className="fixed inset-0 bg-[#172B4D]/60 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl p-6 w-full max-w-sm shadow-2xl max-h-screen overflow-y-auto">
+            <h2 className="font-semibold text-[#172B4D] text-lg mb-4">
               {editing ? 'Modifier l\'extranet' : 'Nouvel extranet'}
             </h2>
             <div className="flex flex-col gap-4">
               <div>
-                <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Nom du grossiste *</label>
+                <label className="text-xs font-medium text-[#667085] uppercase tracking-wide">Nom du grossiste *</label>
                 <input value={form.nom} onChange={(e) => set('nom', e.target.value)}
-                  className="w-full mt-1 p-3 rounded-xl border border-slate-200 bg-slate-50 text-sm"
+                  className="w-full mt-1 p-3 rounded-lg border border-[#DDE4EA] bg-white text-sm text-[#172B4D]"
                   placeholder="Ex: CAMED SA" />
               </div>
               <div>
-                <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">URL du site *</label>
+                <label className="text-xs font-medium text-[#667085] uppercase tracking-wide">URL du site *</label>
                 <input value={form.url} onChange={(e) => set('url', e.target.value)}
-                  className="w-full mt-1 p-3 rounded-xl border border-slate-200 bg-slate-50 text-sm"
+                  className="w-full mt-1 p-3 rounded-lg border border-[#DDE4EA] bg-white text-sm text-[#172B4D]"
                   placeholder="Ex: www.camed.ml" />
               </div>
               <div>
-                <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Identifiant</label>
+                <label className="text-xs font-medium text-[#667085] uppercase tracking-wide">Identifiant</label>
                 <input value={form.identifiant} onChange={(e) => set('identifiant', e.target.value)}
-                  className="w-full mt-1 p-3 rounded-xl border border-slate-200 bg-slate-50 text-sm"
+                  className="w-full mt-1 p-3 rounded-lg border border-[#DDE4EA] bg-white text-sm text-[#172B4D]"
                   placeholder="Identifiant de connexion" />
               </div>
               <div>
-                <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Mot de passe</label>
+                <label className="text-xs font-medium text-[#667085] uppercase tracking-wide">Mot de passe</label>
                 <input value={form.mot_de_passe} onChange={(e) => set('mot_de_passe', e.target.value)}
-                  className="w-full mt-1 p-3 rounded-xl border border-slate-200 bg-slate-50 text-sm"
+                  className="w-full mt-1 p-3 rounded-lg border border-[#DDE4EA] bg-white text-sm text-[#172B4D]"
                   placeholder="Mot de passe extranet" />
               </div>
               <div>
-                <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Note</label>
+                <label className="text-xs font-medium text-[#667085] uppercase tracking-wide">Note</label>
                 <textarea value={form.note} onChange={(e) => set('note', e.target.value)}
-                  className="w-full mt-1 p-3 rounded-xl border border-slate-200 bg-slate-50 text-sm h-16 resize-none"
+                  className="w-full mt-1 p-3 rounded-lg border border-[#DDE4EA] bg-white text-sm text-[#172B4D] h-16 resize-none"
                   placeholder="Informations supplémentaires..." />
               </div>
               <div className="flex gap-3">
                 <button onClick={() => { setShowForm(false); setEditing(null) }}
-                  className="flex-1 bg-slate-100 text-slate-600 font-black py-3 rounded-xl text-sm">
+                  className="flex-1 bg-[#EEF1F4] text-[#667085] font-semibold py-3 rounded-lg text-sm">
                   Annuler
                 </button>
                 <button onClick={handleSave} disabled={saving}
-                  className="flex-1 bg-teal-400 text-blue-950 font-black py-3 rounded-xl text-sm">
+                  className="flex-1 bg-[#087F5B] text-white font-semibold py-3 rounded-lg text-sm">
                   {saving ? '...' : 'Enregistrer'}
                 </button>
               </div>
@@ -254,42 +250,41 @@ const handleOpen = (extranet) => {
         </div>
       )}
 
-      {/* Liste extranets */}
-      <div className="p-6 flex flex-col gap-3">
+      <div className="p-5 flex flex-col gap-3">
         {extranets.length === 0 ? (
-          <div className="bg-white rounded-2xl p-8 text-center">
-            <p className="text-4xl mb-3">🌐</p>
-            <p className="text-slate-400 text-sm">Aucun extranet configuré</p>
+          <div className="bg-white rounded-xl p-8 text-center border border-[#DDE4EA]">
+            <p className="text-3xl mb-2">🌐</p>
+            <p className="text-[#667085] text-sm font-medium">Aucun extranet configuré</p>
             {profile.role === 'manager' && (
-              <p className="text-slate-300 text-xs mt-1">Cliquez sur "+ Ajouter" pour commencer</p>
+              <p className="text-[#98A2B3] text-xs mt-1">Cliquez sur "+ Ajouter" pour commencer</p>
             )}
           </div>
         ) : (
           extranets.map((e) => (
-            <div key={e.id} className="bg-white rounded-2xl p-4">
+            <div key={e.id} className="bg-white rounded-xl p-4 border border-[#DDE4EA]">
               <div className="flex items-center gap-3">
-                <div className="w-12 h-12 rounded-2xl bg-blue-950 flex items-center justify-center font-black text-teal-400 text-lg flex-shrink-0">
+                <div className="w-11 h-11 rounded-xl bg-[#172B4D] flex items-center justify-center font-semibold text-[#087F5B] text-lg flex-shrink-0">
                   {e.nom?.[0]}
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="font-black text-blue-950">{e.nom}</p>
-                  <p className="text-xs text-slate-400 truncate">{e.url}</p>
-                  {e.identifiant && (
-                    <p className="text-xs text-teal-500 font-bold mt-0.5">🔑 Identifiants configurés</p>
+                  <p className="font-semibold text-[#172B4D]">{e.nom}</p>
+                  <p className="text-xs text-[#667085] truncate">{e.url}</p>
+                  {e.identifiant_enc && (
+                    <p className="text-xs text-[#087F5B] font-semibold mt-0.5">🔑 Identifiants configurés</p>
                   )}
                 </div>
                 <div className="flex gap-2 flex-shrink-0">
                   {profile.role === 'manager' && (
                     <>
-                      <button onClick={() => handleEdit(e)} className="bg-blue-50 text-blue-600 px-3 py-1.5 rounded-lg text-xs font-bold">✏️</button>
-                      <button onClick={() => handleDelete(e.id)} className="bg-rose-50 text-rose-500 px-3 py-1.5 rounded-lg text-xs font-bold">🗑️</button>
+                      <button onClick={() => handleEdit(e)} className="bg-[#E8F0FE] text-[#2563EB] px-3 py-1.5 rounded-lg text-xs font-semibold">✏️</button>
+                      <button onClick={() => handleDelete(e.id)} className="bg-[#FDE8E8] text-[#DC2626] px-3 py-1.5 rounded-lg text-xs font-semibold">🗑️</button>
                     </>
                   )}
                 </div>
               </div>
               <button
                 onClick={() => handleOpen(e)}
-                className="w-full mt-3 bg-blue-950 text-white font-black py-3 rounded-xl text-sm hover:bg-blue-900 transition-colors"
+                className="w-full mt-3 bg-[#172B4D] text-white font-semibold py-3 rounded-lg text-sm hover:bg-[#233858] transition-colors"
               >
                 🌐 Ouvrir {e.nom}
               </button>

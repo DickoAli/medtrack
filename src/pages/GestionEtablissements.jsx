@@ -24,10 +24,13 @@ export default function GestionEtablissements({ onBack, profile }) {
     cscom: 'CSCom', cabinet: 'Cabinet', pharmacie: 'Pharmacie', autre: 'Autre'
   }
   const TYPE_COLORS = {
-    hopital: 'bg-red-100 text-red-600', clinique: 'bg-purple-100 text-purple-600',
-    csref: 'bg-blue-100 text-blue-600', cscom: 'bg-teal-100 text-teal-600',
-    cabinet: 'bg-amber-100 text-amber-600', pharmacie: 'bg-green-100 text-green-600',
-    autre: 'bg-slate-100 text-slate-500'
+    hopital: 'bg-[#FDE8E8] text-[#DC2626]',
+    clinique: 'bg-[#E8F0FE] text-[#2563EB]',
+    csref: 'bg-[#E7F5EF] text-[#087F5B]',
+    cscom: 'bg-[#E7F5EF] text-[#087F5B]',
+    cabinet: 'bg-[#FEF3E2] text-[#B45309]',
+    pharmacie: 'bg-[#E9F9EE] text-[#16A34A]',
+    autre: 'bg-[#EEF1F4] text-[#667085]'
   }
 
   useEffect(() => { fetchAll() }, [])
@@ -155,38 +158,38 @@ export default function GestionEtablissements({ onBack, profile }) {
   })
 
   if (loading) return (
-    <div className="min-h-screen bg-slate-100 flex items-center justify-center">
-      <p className="text-teal-500 font-bold">Chargement...</p>
+    <div className="min-h-screen bg-[#F4F7F9] flex items-center justify-center">
+      <p className="text-[#087F5B] font-medium">Chargement...</p>
     </div>
   )
 
   return (
-    <div className="min-h-screen bg-slate-100">
+    <div className="min-h-screen bg-[#F4F7F9]">
       {/* Header */}
-      <div className="bg-blue-950 px-6 py-4 flex items-center justify-between">
+      <div className="bg-[#172B4D] px-5 py-4 flex items-center justify-between">
         <div className="flex items-center gap-4">
           <button onClick={onBack} className="text-white text-xl">←</button>
           <div>
-            <h1 className="text-white font-black text-lg">Établissements</h1>
-            <p className="text-teal-400 text-xs font-bold uppercase tracking-wider">
+            <h1 className="text-white font-semibold text-base">Établissements</h1>
+            <p className="text-[#9AA9C2] text-xs font-medium uppercase tracking-wide">
               {etablissements.length} établissement{etablissements.length > 1 ? 's' : ''}
             </p>
           </div>
         </div>
         <button
           onClick={() => { setShowForm(true); setEditing(null); resetForm() }}
-          className="bg-teal-400 text-blue-950 px-4 py-2 rounded-xl font-black text-xs"
+          className="bg-[#087F5B] text-white px-4 py-2 rounded-lg font-semibold text-xs"
         >
           + Ajouter
         </button>
       </div>
 
       {/* Filtres */}
-      <div className="px-6 pt-4 flex flex-col gap-3">
+      <div className="px-5 pt-4 flex flex-col gap-3">
         <input
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          className="w-full p-3 rounded-xl border border-slate-200 bg-white text-sm"
+          className="w-full p-3 rounded-lg border border-[#DDE4EA] bg-white text-sm text-[#172B4D]"
           placeholder="🔍 Rechercher un établissement..."
         />
         <div className="flex gap-2 overflow-x-auto pb-1">
@@ -194,10 +197,10 @@ export default function GestionEtablissements({ onBack, profile }) {
             <button
               key={t}
               onClick={() => setFilterType(t)}
-              className={`px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap border transition-colors ${
+              className={`px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap border transition-colors ${
                 filterType === t
-                  ? 'bg-blue-950 text-white border-blue-950'
-                  : 'bg-white text-slate-500 border-slate-200'
+                  ? 'bg-[#172B4D] text-white border-[#172B4D]'
+                  : 'bg-white text-[#667085] border-[#DDE4EA]'
               }`}
             >
               {t === 'tous' ? 'Tous' : TYPE_LABELS[t]}
@@ -207,48 +210,48 @@ export default function GestionEtablissements({ onBack, profile }) {
       </div>
 
       {successMsg && (
-        <div className="mx-6 mt-4 bg-teal-50 border border-teal-200 rounded-2xl p-4 text-center">
-          <p className="text-teal-600 font-black">✅ {successMsg}</p>
+        <div className="mx-5 mt-4 bg-[#E7F5EF] border border-[#087F5B]/20 rounded-xl p-4 text-center">
+          <p className="text-[#087F5B] font-semibold">✅ {successMsg}</p>
         </div>
       )}
 
       {/* Formulaire */}
       {showForm && (
-        <div className="fixed inset-0 bg-blue-950/60 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl p-6 w-full max-w-sm shadow-2xl max-h-screen overflow-y-auto">
-            <h2 className="font-black text-blue-950 text-lg mb-4">
+        <div className="fixed inset-0 bg-[#172B4D]/60 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl p-6 w-full max-w-sm shadow-2xl max-h-screen overflow-y-auto">
+            <h2 className="font-semibold text-[#172B4D] text-lg mb-4">
               {editing ? 'Modifier l\'établissement' : 'Nouvel établissement'}
             </h2>
             <div className="flex flex-col gap-4">
               <div>
-                <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Nom *</label>
+                <label className="text-xs font-medium text-[#667085] uppercase tracking-wide">Nom *</label>
                 <input value={form.nom} onChange={e => set('nom', e.target.value)}
-                  className="w-full mt-1 p-3 rounded-xl border border-slate-200 bg-slate-50 text-sm"
+                  className="w-full mt-1 p-3 rounded-lg border border-[#DDE4EA] bg-white text-sm text-[#172B4D]"
                   placeholder="Ex: CSRef Commune I, Clinique Pasteur..." />
               </div>
 
               <div>
-                <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Type *</label>
+                <label className="text-xs font-medium text-[#667085] uppercase tracking-wide">Type *</label>
                 <select value={form.type} onChange={e => set('type', e.target.value)}
-                  className="w-full mt-1 p-3 rounded-xl border border-slate-200 bg-slate-50 text-sm">
+                  className="w-full mt-1 p-3 rounded-lg border border-[#DDE4EA] bg-white text-sm text-[#172B4D]">
                   <option value="">Sélectionner...</option>
                   {TYPES.map(t => <option key={t} value={t}>{TYPE_LABELS[t]}</option>)}
                 </select>
               </div>
 
               <div>
-                <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Territoire *</label>
+                <label className="text-xs font-medium text-[#667085] uppercase tracking-wide">Territoire *</label>
                 <select value={form.territory_id} onChange={e => set('territory_id', e.target.value)}
-                  className="w-full mt-1 p-3 rounded-xl border border-slate-200 bg-slate-50 text-sm">
+                  className="w-full mt-1 p-3 rounded-lg border border-[#DDE4EA] bg-white text-sm text-[#172B4D]">
                   <option value="">Sélectionner un territoire...</option>
                   {territoires.map(t => <option key={t.id} value={t.id}>{t.nom}</option>)}
                 </select>
               </div>
 
               <div>
-                <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Zone géographique</label>
+                <label className="text-xs font-medium text-[#667085] uppercase tracking-wide">Zone géographique</label>
                 <select value={form.geography_id} onChange={e => set('geography_id', e.target.value)}
-                  className="w-full mt-1 p-3 rounded-xl border border-slate-200 bg-slate-50 text-sm">
+                  className="w-full mt-1 p-3 rounded-lg border border-[#DDE4EA] bg-white text-sm text-[#172B4D]">
                   <option value="">Sélectionner...</option>
                   {Object.entries(geoGrouped).map(([type, geos]) => (
                     <optgroup key={type} label={getTypeLabel(type)}>
@@ -259,59 +262,57 @@ export default function GestionEtablissements({ onBack, profile }) {
               </div>
 
               <div>
-                <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Adresse</label>
+                <label className="text-xs font-medium text-[#667085] uppercase tracking-wide">Adresse</label>
                 <input value={form.adresse} onChange={e => set('adresse', e.target.value)}
-                  className="w-full mt-1 p-3 rounded-xl border border-slate-200 bg-slate-50 text-sm"
+                  className="w-full mt-1 p-3 rounded-lg border border-[#DDE4EA] bg-white text-sm text-[#172B4D]"
                   placeholder="Adresse complète..." />
               </div>
 
               <div>
-                <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Téléphone</label>
+                <label className="text-xs font-medium text-[#667085] uppercase tracking-wide">Téléphone</label>
                 <input value={form.telephone} onChange={e => set('telephone', e.target.value)}
-                  className="w-full mt-1 p-3 rounded-xl border border-slate-200 bg-slate-50 text-sm"
+                  className="w-full mt-1 p-3 rounded-lg border border-[#DDE4EA] bg-white text-sm text-[#172B4D]"
                   placeholder="00223XXXXXXXX" />
               </div>
 
-              {/* GPS */}
               <div>
-                <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">
+                <label className="text-xs font-medium text-[#667085] uppercase tracking-wide">
                   Position GPS
                 </label>
                 <div className="flex gap-2 mt-1">
                   <input value={form.latitude} onChange={e => set('latitude', e.target.value)}
-                    className="flex-1 p-3 rounded-xl border border-slate-200 bg-slate-50 text-sm"
+                    className="flex-1 p-3 rounded-lg border border-[#DDE4EA] bg-white text-sm text-[#172B4D]"
                     placeholder="Latitude" />
                   <input value={form.longitude} onChange={e => set('longitude', e.target.value)}
-                    className="flex-1 p-3 rounded-xl border border-slate-200 bg-slate-50 text-sm"
+                    className="flex-1 p-3 rounded-lg border border-[#DDE4EA] bg-white text-sm text-[#172B4D]"
                     placeholder="Longitude" />
                 </div>
                 <button onClick={captureGPS} disabled={gpsLoading}
-                  className="w-full mt-2 bg-blue-950 text-white font-bold py-2 rounded-xl text-xs">
+                  className="w-full mt-2 bg-[#172B4D] text-white font-semibold py-2 rounded-lg text-xs">
                   {gpsLoading ? 'Localisation...' : '📍 Capturer ma position GPS'}
                 </button>
               </div>
 
-              {/* Geofence */}
               <div>
-                <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">
+                <label className="text-xs font-medium text-[#667085] uppercase tracking-wide">
                   Rayon geofence (mètres)
                 </label>
                 <input type="number" value={form.geofence_radius}
                   onChange={e => set('geofence_radius', e.target.value)}
-                  className="w-full mt-1 p-3 rounded-xl border border-slate-200 bg-slate-50 text-sm"
+                  className="w-full mt-1 p-3 rounded-lg border border-[#DDE4EA] bg-white text-sm text-[#172B4D]"
                   min="50" max="500" />
-                <p className="text-xs text-slate-400 mt-1">
+                <p className="text-xs text-[#98A2B3] mt-1">
                   Zone de validation visite — défaut : 150m
                 </p>
               </div>
 
               <div className="flex gap-3">
                 <button onClick={() => { setShowForm(false); setEditing(null) }}
-                  className="flex-1 bg-slate-100 text-slate-600 font-black py-3 rounded-xl text-sm">
+                  className="flex-1 bg-[#EEF1F4] text-[#667085] font-semibold py-3 rounded-lg text-sm">
                   Annuler
                 </button>
                 <button onClick={handleSave} disabled={saving}
-                  className="flex-1 bg-teal-400 text-blue-950 font-black py-3 rounded-xl text-sm">
+                  className="flex-1 bg-[#087F5B] text-white font-semibold py-3 rounded-lg text-sm">
                   {saving ? 'Enregistrement...' : 'Enregistrer'}
                 </button>
               </div>
@@ -321,44 +322,44 @@ export default function GestionEtablissements({ onBack, profile }) {
       )}
 
       {/* Liste */}
-      <div className="p-6 flex flex-col gap-3">
-        <p className="text-xs text-slate-400 font-bold uppercase tracking-wider">
+      <div className="p-5 flex flex-col gap-3">
+        <p className="text-xs text-[#667085] font-semibold uppercase tracking-wide">
           {filtered.length} établissement{filtered.length > 1 ? 's' : ''}
         </p>
 
         {filtered.length === 0 ? (
-          <div className="bg-white rounded-2xl p-8 text-center">
-            <p className="text-4xl mb-3">🏥</p>
-            <p className="text-slate-400 text-sm font-bold">Aucun établissement trouvé</p>
+          <div className="bg-white rounded-xl p-8 text-center border border-[#DDE4EA]">
+            <p className="text-3xl mb-2">🏥</p>
+            <p className="text-[#667085] text-sm font-medium">Aucun établissement trouvé</p>
           </div>
         ) : (
           filtered.map(e => (
-            <div key={e.id} className={`bg-white rounded-2xl p-4 border-l-4 ${e.is_active ? 'border-teal-400' : 'border-slate-200'}`}>
+            <div key={e.id} className="bg-white rounded-xl p-4 border border-[#DDE4EA]">
               <div className="flex items-start justify-between gap-3">
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 flex-wrap mb-1">
-                    <p className={`font-black text-blue-950 ${!e.is_active ? 'opacity-50' : ''}`}>{e.nom}</p>
-                    <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${TYPE_COLORS[e.type]}`}>
+                    <p className={`font-semibold text-[#172B4D] ${!e.is_active ? 'opacity-50' : ''}`}>{e.nom}</p>
+                    <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${TYPE_COLORS[e.type]}`}>
                       {TYPE_LABELS[e.type]}
                     </span>
                   </div>
                   {e.territories && (
-                    <p className="text-xs text-slate-400">🗺️ {e.territories.nom}</p>
+                    <p className="text-xs text-[#667085]">🗺️ {e.territories.nom}</p>
                   )}
                   {e.adresse && (
-                    <p className="text-xs text-slate-400">📍 {e.adresse}</p>
+                    <p className="text-xs text-[#667085]">📍 {e.adresse}</p>
                   )}
                   {e.telephone && (
-                    <p className="text-xs text-slate-400">📞 {e.telephone}</p>
+                    <p className="text-xs text-[#667085]">📞 {e.telephone}</p>
                   )}
                   <div className="flex gap-2 mt-2 flex-wrap">
                     {e.latitude && e.longitude && (
-                      <span className="text-xs bg-teal-50 text-teal-600 font-bold px-2 py-0.5 rounded-full">
+                      <span className="text-xs bg-[#E7F5EF] text-[#087F5B] font-semibold px-2 py-0.5 rounded-full">
                         📡 GPS configuré
                       </span>
                     )}
                     {e.geofence_radius && (
-                      <span className="text-xs bg-blue-50 text-blue-600 font-bold px-2 py-0.5 rounded-full">
+                      <span className="text-xs bg-[#E8F0FE] text-[#2563EB] font-semibold px-2 py-0.5 rounded-full">
                         ⭕ {e.geofence_radius}m
                       </span>
                     )}
@@ -366,13 +367,13 @@ export default function GestionEtablissements({ onBack, profile }) {
                 </div>
                 <div className="flex gap-2 flex-shrink-0">
                   <button onClick={() => toggleActif(e)}
-                    className={`px-3 py-1.5 rounded-lg text-xs font-bold ${e.is_active ? 'bg-slate-100 text-slate-500' : 'bg-teal-50 text-teal-600'}`}>
+                    className={`px-3 py-1.5 rounded-lg text-xs font-semibold ${e.is_active ? 'bg-[#EEF1F4] text-[#667085]' : 'bg-[#E7F5EF] text-[#087F5B]'}`}>
                     {e.is_active ? '⏸' : '▶'}
                   </button>
                   <button onClick={() => handleEdit(e)}
-                    className="bg-blue-50 text-blue-600 px-3 py-1.5 rounded-lg text-xs font-bold">✏️</button>
+                    className="bg-[#E8F0FE] text-[#2563EB] px-3 py-1.5 rounded-lg text-xs font-semibold">✏️</button>
                   <button onClick={() => handleDelete(e.id)}
-                    className="bg-rose-50 text-rose-500 px-3 py-1.5 rounded-lg text-xs font-bold">🗑️</button>
+                    className="bg-[#FDE8E8] text-[#DC2626] px-3 py-1.5 rounded-lg text-xs font-semibold">🗑️</button>
                 </div>
               </div>
             </div>

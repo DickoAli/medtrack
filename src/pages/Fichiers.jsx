@@ -11,7 +11,6 @@ export default function Fichiers({ onBack, profile }) {
   const [description, setDescription] = useState('')
   const isSuper = profile.role_global === 'superadmin'
 
-  // Pour superadmin qui choisit l'agence cible
   const [agences, setAgences] = useState([])
   const [selectedAgence, setSelectedAgence] = useState(profile.agence_id || '')
 
@@ -56,7 +55,6 @@ export default function Fichiers({ onBack, profile }) {
     const mois = now.toLocaleString('fr-FR', { month: 'long', year: 'numeric' })
     const fileName = `${agenceCible}/${Date.now()}_${file.name}`
 
-    // Upload dans Supabase Storage
     const { error: uploadError } = await supabase.storage
       .from('STATLABO')
       .upload(fileName, file)
@@ -67,12 +65,10 @@ export default function Fichiers({ onBack, profile }) {
       return
     }
 
-    // Récupérer l'URL publique
     const { data: urlData } = supabase.storage
       .from('STATLABO')
       .getPublicUrl(fileName)
 
-    // Enregistrer en base
     await supabase.from('fichiers').insert({
       agence_id: agenceCible,
       nom: description || file.name,
@@ -117,7 +113,6 @@ export default function Fichiers({ onBack, profile }) {
     return `${(bytes / (1024 * 1024)).toFixed(1)} Mo`
   }
 
-  // Années disponibles pour le filtre
   const annees = [...new Set(fichiers.map(f => f.annee))].sort((a, b) => b - a)
   const moisDispo = [...new Set(fichiers.filter(f => filterAnnee === 'tous' || f.annee === Number(filterAnnee)).map(f => f.mois))]
 
@@ -128,38 +123,37 @@ export default function Fichiers({ onBack, profile }) {
   })
 
   if (loading) return (
-    <div className="min-h-screen bg-slate-100 flex items-center justify-center">
-      <p className="text-teal-500 font-bold">Chargement...</p>
+    <div className="min-h-screen bg-[#F4F7F9] flex items-center justify-center">
+      <p className="text-[#087F5B] font-medium">Chargement...</p>
     </div>
   )
 
   return (
-    <div className="min-h-screen bg-slate-100">
-      <div className="bg-blue-950 px-6 py-4 flex items-center gap-4">
+    <div className="min-h-screen bg-[#F4F7F9]">
+      <div className="bg-[#172B4D] px-5 py-4 flex items-center gap-4">
         <button onClick={onBack} className="text-white text-xl">←</button>
-        <h1 className="text-white font-black">Statistiques fichiers</h1>
+        <h1 className="text-white font-semibold text-base">Statistiques fichiers</h1>
       </div>
 
       {successMsg && (
-        <div className="mx-6 mt-4 bg-teal-50 border border-teal-200 rounded-2xl p-4 text-center">
-          <p className="text-teal-600 font-black">✅ {successMsg}</p>
+        <div className="mx-5 mt-4 bg-[#E7F5EF] border border-[#087F5B]/20 rounded-xl p-4 text-center">
+          <p className="text-[#087F5B] font-semibold">✅ {successMsg}</p>
         </div>
       )}
 
-      {/* Zone de dépôt — superadmin seulement */}
       {isSuper && (
-        <div className="mx-6 mt-4 bg-white rounded-2xl p-4">
-          <p className="text-xs font-black text-blue-950 uppercase tracking-wider mb-3">
+        <div className="mx-5 mt-4 bg-white rounded-xl p-4 border border-[#DDE4EA]">
+          <p className="text-xs font-semibold text-[#172B4D] uppercase tracking-wide mb-3">
             📤 Déposer un fichier
           </p>
 
           <div className="flex flex-col gap-3">
             <div>
-              <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Agence cible</label>
+              <label className="text-xs font-medium text-[#667085] uppercase tracking-wide">Agence cible</label>
               <select
                 value={selectedAgence}
                 onChange={(e) => { setSelectedAgence(e.target.value); fetchFichiers() }}
-                className="w-full mt-1 p-3 rounded-xl border border-slate-200 bg-slate-50 text-sm"
+                className="w-full mt-1 p-3 rounded-lg border border-[#DDE4EA] bg-white text-sm text-[#172B4D]"
               >
                 <option value="">Sélectionner une agence</option>
                 {agences.map(a => <option key={a.id} value={a.id}>{a.nom}</option>)}
@@ -167,17 +161,17 @@ export default function Fichiers({ onBack, profile }) {
             </div>
 
             <div>
-              <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Description du fichier</label>
+              <label className="text-xs font-medium text-[#667085] uppercase tracking-wide">Description du fichier</label>
               <input
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
-                className="w-full mt-1 p-3 rounded-xl border border-slate-200 bg-slate-50 text-sm"
+                className="w-full mt-1 p-3 rounded-lg border border-[#DDE4EA] bg-white text-sm text-[#172B4D]"
                 placeholder="Ex: Stats ventes par ville - Janvier 2025"
               />
             </div>
 
             <label className={`w-full ${uploading ? 'opacity-50' : 'cursor-pointer'}`}>
-              <div className="w-full bg-blue-950 text-white font-black py-3 rounded-xl text-sm text-center">
+              <div className="w-full bg-[#172B4D] text-white font-semibold py-3 rounded-lg text-sm text-center">
                 {uploading ? '⏳ Dépôt en cours...' : '📂 Choisir un fichier Excel'}
               </div>
               <input
@@ -192,27 +186,26 @@ export default function Fichiers({ onBack, profile }) {
         </div>
       )}
 
-      {/* Filtres */}
-      <div className="mx-6 mt-4 bg-white rounded-2xl p-4">
-        <p className="text-xs font-black text-blue-950 uppercase tracking-wider mb-3">Filtres</p>
+      <div className="mx-5 mt-4 bg-white rounded-xl p-4 border border-[#DDE4EA]">
+        <p className="text-xs font-semibold text-[#172B4D] uppercase tracking-wide mb-3">Filtres</p>
         <div className="flex gap-3">
           <div className="flex-1">
-            <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Année</label>
+            <label className="text-xs font-medium text-[#667085] uppercase tracking-wide">Année</label>
             <select
               value={filterAnnee}
               onChange={(e) => { setFilterAnnee(e.target.value); setFilterMois('tous') }}
-              className="w-full mt-1 p-2 rounded-xl border border-slate-200 bg-slate-50 text-sm"
+              className="w-full mt-1 p-2 rounded-lg border border-[#DDE4EA] bg-white text-sm text-[#172B4D]"
             >
               <option value="tous">Toutes</option>
               {annees.map(a => <option key={a} value={a}>{a}</option>)}
             </select>
           </div>
           <div className="flex-1">
-            <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Mois</label>
+            <label className="text-xs font-medium text-[#667085] uppercase tracking-wide">Mois</label>
             <select
               value={filterMois}
               onChange={(e) => setFilterMois(e.target.value)}
-              className="w-full mt-1 p-2 rounded-xl border border-slate-200 bg-slate-50 text-sm"
+              className="w-full mt-1 p-2 rounded-lg border border-[#DDE4EA] bg-white text-sm text-[#172B4D]"
             >
               <option value="tous">Tous</option>
               {moisDispo.map(m => <option key={m} value={m}>{m}</option>)}
@@ -221,39 +214,38 @@ export default function Fichiers({ onBack, profile }) {
         </div>
       </div>
 
-      {/* Liste fichiers */}
-      <div className="p-6 flex flex-col gap-3">
-        <p className="text-xs text-slate-400 font-bold uppercase tracking-wider">
+      <div className="p-5 flex flex-col gap-3">
+        <p className="text-xs text-[#667085] font-semibold uppercase tracking-wide">
           {fichiersFiltres.length} fichier{fichiersFiltres.length > 1 ? 's' : ''}
         </p>
 
         {fichiersFiltres.length === 0 ? (
-          <div className="bg-white rounded-2xl p-8 text-center">
-            <p className="text-4xl mb-3">📊</p>
-            <p className="text-slate-400 text-sm">Aucun fichier disponible</p>
+          <div className="bg-white rounded-xl p-8 text-center border border-[#DDE4EA]">
+            <p className="text-3xl mb-2">📊</p>
+            <p className="text-[#667085] text-sm font-medium">Aucun fichier disponible</p>
             {!isSuper && (
-              <p className="text-slate-300 text-xs mt-1">L'administrateur déposera vos fichiers ici</p>
+              <p className="text-[#98A2B3] text-xs mt-1">L'administrateur déposera vos fichiers ici</p>
             )}
           </div>
         ) : (
           fichiersFiltres.map((f) => (
-            <div key={f.id} className="bg-white rounded-2xl p-4">
+            <div key={f.id} className="bg-white rounded-xl p-4 border border-[#DDE4EA]">
               <div className="flex items-start gap-3">
-                <div className="w-12 h-12 rounded-2xl bg-green-100 flex items-center justify-center text-2xl flex-shrink-0">
+                <div className="w-11 h-11 rounded-xl bg-[#E7F5EF] flex items-center justify-center text-xl flex-shrink-0">
                   📊
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="font-black text-blue-950 text-sm">{f.nom}</p>
-                  <p className="text-xs text-slate-400 truncate">{f.nom_original}</p>
+                  <p className="font-semibold text-[#172B4D] text-sm">{f.nom}</p>
+                  <p className="text-xs text-[#667085] truncate">{f.nom_original}</p>
                   <div className="flex gap-2 mt-1 flex-wrap">
-                    <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-blue-100 text-blue-600">
+                    <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-[#E8F0FE] text-[#2563EB]">
                       {f.mois}
                     </span>
                     {f.taille && (
-                      <span className="text-xs text-slate-400">{formatTaille(f.taille)}</span>
+                      <span className="text-xs text-[#98A2B3]">{formatTaille(f.taille)}</span>
                     )}
                   </div>
-                  <p className="text-xs text-slate-300 mt-1">
+                  <p className="text-xs text-[#98A2B3] mt-1">
                     Déposé le {new Date(f.created_at).toLocaleDateString('fr-FR')} à {new Date(f.created_at).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}
                   </p>
                 </div>
@@ -262,14 +254,14 @@ export default function Fichiers({ onBack, profile }) {
               <div className="flex gap-2 mt-3">
                 <button
                   onClick={() => handleDownload(f)}
-                  className="flex-1 bg-teal-400 text-blue-950 font-black py-2 rounded-xl text-xs"
+                  className="flex-1 bg-[#087F5B] text-white font-semibold py-2 rounded-lg text-xs"
                 >
                   📥 Télécharger
                 </button>
                 {isSuper && (
                   <button
                     onClick={() => handleDelete(f)}
-                    className="bg-rose-50 text-rose-500 px-4 py-2 rounded-xl text-xs font-black"
+                    className="bg-[#FDE8E8] text-[#DC2626] px-4 py-2 rounded-lg text-xs font-semibold"
                   >
                     🗑️
                   </button>
