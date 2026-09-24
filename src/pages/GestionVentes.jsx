@@ -14,6 +14,7 @@ export default function GestionVentes({ onBack, profile }) {
   const [showMapping, setShowMapping] = useState(null)
   const [saving, setSaving] = useState(false)
   const [importing, setImporting] = useState(false)
+  const [recalculating, setRecalculating] = useState(false)
   const [successMsg, setSuccessMsg] = useState('')
   const fileRef = useRef(null)
   const [selectedWholesaler, setSelectedWholesaler] = useState(null)
@@ -141,11 +142,27 @@ export default function GestionVentes({ onBack, profile }) {
   }
 
   const aggregateSales = async () => {
-    const { data: lines } = await supabase.from('sales_lines').select('*').eq('agence_id', profile.agence_id).not('produit_id', 'is', null)
-    if (!lines) return
+    setRecalculating(true)
+    const { data: lines } = await supabase.from('sales_lines').select('*').eq('agence_id', profile.agence_id)
+    if (!lines) { setRecalculating(false); return }
 
-    const grouped = {}
+    // Rattache rétroactivement les lignes dont un mapping existe désormais
+    // mais qui avaient été importées avant que ce mapping n'existe.
+    const codesByKey = {}
+    externalCodes.forEach(ec => { codesByKey[`${ec.wholesaler_id}_${ec.external_code}`] = ec.produit_id })
     for (const line of lines) {
+      if (!line.produit_id) {
+        const found = codesByKey[`${line.wholesaler_id}_${line.external_code}`]
+        if (found) {
+          await supabase.from('sales_lines').update({ produit_id: found, is_mapped: true }).eq('id', line.id)
+          line.produit_id = found
+        }
+      }
+    }
+
+    const mappedLines = lines.filter(l => l.produit_id)
+    const grouped = {}
+    for (const line of mappedLines) {
       const key = `${line.produit_id}_${line.period_month}_${line.period_year}`
       if (!grouped[key]) {
         grouped[key] = { produit_id: line.produit_id, period_month: line.period_month, period_year: line.period_year, total_quantity: 0, total_amount: 0, wholesalers: new Set() }
@@ -165,6 +182,7 @@ export default function GestionVentes({ onBack, profile }) {
         wholesaler_count: g.wholesalers.size, currency: 'XOF', last_updated: new Date().toISOString()
       }, { onConflict: 'agence_id,produit_id,period_month,period_year' })
     }
+    setRecalculating(false)
   }
 
   const MONTHS = ['Jan', 'Fév', 'Mar', 'Avr', 'Mai', 'Jun', 'Jul', 'Aoû', 'Sep', 'Oct', 'Nov', 'Déc']
@@ -456,8 +474,17 @@ export default function GestionVentes({ onBack, profile }) {
 
       {tab === 'ventes' && (
         <div className="p-5 flex flex-col gap-3 pb-10">
-          <p className="text-xs font-semibold text-[#667085] uppercase tracking-wide">
-            Ventes consolidées par produit
+          <div className="flex items-center justify-between">
+            <p className="text-xs font-semibold text-[#667085] uppercase tracking-wide">
+              Ventes consolidées par produit
+            </p>
+            <button onClick={() => aggregateSales().then(fetchAll)} disabled={recalculating}
+              className="text-xs bg-[#E8F0FE] text-[#2563EB] font-semibold px-3 py-1.5 rounded-lg">
+              {recalculating ? '⏳ Calcul...' : '🔄 Recalculer'}
+            </button>
+          </div>
+          <p className="text-xs text-[#98A2B3] -mt-2">
+            À utiliser après avoir ajouté un mapping de produit — rattache automatiquement les ventes déjà importées qui n'avaient pas encore de correspondance.
           </p>
 
           {aggregated.length === 0 ? (
