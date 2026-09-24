@@ -422,16 +422,12 @@ export default function Dashboard({ session, profile, agence }) {
                       {delegatesWithoutVisit.length}
                     </span>
                   </div>
-                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-                    {delegatesWithoutVisit.slice(0, 8).map(d => (
-                      <span key={d.id} style={{ fontSize: 'var(--mt-label)', color: C.text, background: C.neutralTint, padding: '6px 12px', borderRadius: 20, fontWeight: 500 }}>
-                        {d.prenom} {d.nom}
-                      </span>
-                    ))}
+                  <p style={{ fontSize: 'var(--mt-label)', color: C.text, lineHeight: 1.6 }}>
+                    {delegatesWithoutVisit.slice(0, 8).map(d => `${d.prenom} ${d.nom}`).join(' · ')}
                     {delegatesWithoutVisit.length > 8 && (
-                      <span style={{ fontSize: 'var(--mt-label)', color: C.textSecondary, padding: '6px 4px' }}>+{delegatesWithoutVisit.length - 8}</span>
+                      <span style={{ color: C.textSecondary }}> +{delegatesWithoutVisit.length - 8} autre{delegatesWithoutVisit.length - 8 > 1 ? 's' : ''}</span>
                     )}
-                  </div>
+                  </p>
                 </div>
               )}
 
