@@ -27,6 +27,7 @@ export default function DelegueApp({ session, profile }) {
   const [offlineStats, setOfflineStats] = useState(null)
   const [selectedVisite, setSelectedVisite] = useState(null)
   const [showProfil, setShowProfil] = useState(false)
+  const [extranetAccess, setExtranetAccess] = useState(true) // défaut true tant que non chargé, pour ne pas masquer par erreur
   const watchRef = useRef(null)
   const photoRef = useRef(null)
   const photoFileRef = useRef(null)
@@ -44,7 +45,7 @@ export default function DelegueApp({ session, profile }) {
 
   const fetchData = async () => {
     if (isOnline()) {
-      const [{ data: v }, { data: p }, { data: po }, { data: ag }, { data: sup }] = await Promise.all([
+      const [{ data: v }, { data: p }, { data: po }, { data: ag }, { data: sup }, { data: delegateRow }] = await Promise.all([
         supabase.from('visites')
           .select('*')
           .eq('delegate_id', profile.delegate_id)
@@ -67,7 +68,11 @@ export default function DelegueApp({ session, profile }) {
           .select('*, produits(nom), laboratoires(nom)')
           .eq('agence_id', profile.agence_id)
           .eq('is_published', true)
-          .eq('is_offline', true)
+          .eq('is_offline', true),
+        supabase.from('delegates')
+          .select('extranet_access')
+          .eq('id', profile.delegate_id)
+          .single()
       ])
 
       setVisites(v || [])
@@ -75,6 +80,7 @@ export default function DelegueApp({ session, profile }) {
       setPortfolio(po || [])
       setAgenda(ag || [])
       setSupports(sup || [])
+      setExtranetAccess(delegateRow?.extranet_access !== false)
 
       await Promise.all([
         saveAgendaOffline(ag || []),
@@ -341,12 +347,13 @@ export default function DelegueApp({ session, profile }) {
     document: 'bg-[#EEF1F4] text-[#667085]'
   }
 
-  if (page === 'extranet') return <Extranet profile={profile} onBack={() => setPage('accueil')} />
+  if (page === 'extranet' && extranetAccess) return <Extranet profile={profile} onBack={() => setPage('accueil')} />
 
   return (
     <div className="min-h-screen bg-[#F4F7F9]">
       {/* Header */}
-      <div className="bg-[#172B4D] px-5 py-4 flex items-center justify-between">
+      <div className="bg-[#172B4D] px-5 py-4 flex items-center justify-between"
+        style={{ paddingTop: 'calc(1rem + env(safe-area-inset-top, 0px))' }}>
         <div className="flex items-center gap-3">
           <span className="text-xl text-[#087F5B]">⚕</span>
           <div>
@@ -399,22 +406,25 @@ export default function DelegueApp({ session, profile }) {
         </div>
       )}
 
-      {/* Nav tabs */}
-      <div className="bg-white flex border-b border-[#DDE4EA]">
+      {/* Nav tabs — icône + mini-libellé empilés : reste lisible et tactile
+          aussi bien sur téléphone étroit que sur tablette large */}
+      <div className="bg-white flex border-b border-[#DDE4EA]" style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}>
         {[
-          { id: 'accueil', label: '🏠' },
-          { id: 'agenda', label: '📅 Agenda' },
-          { id: 'portefeuille', label: '👜 Cibles' },
-          { id: 'visite', label: '+ Visite' },
-          { id: 'historique', label: '📋' },
-          { id: 'supports', label: '📚' },
-          { id: 'extranet', label: '🌐' },
+          { id: 'accueil', icon: '🏠', label: 'Accueil' },
+          { id: 'agenda', icon: '📅', label: 'Agenda' },
+          { id: 'portefeuille', icon: '👜', label: 'Cibles' },
+          { id: 'visite', icon: '➕', label: 'Visite' },
+          { id: 'historique', icon: '📋', label: 'Historique' },
+          { id: 'supports', icon: '📚', label: 'Supports' },
+          ...(extranetAccess ? [{ id: 'extranet', icon: '🌐', label: 'Extranet' }] : []),
         ].map(n => (
           <button key={n.id} onClick={() => { setPage(n.id); setSuccess(false) }}
-            className={`flex-1 py-3 text-xs font-semibold transition-colors ${
-              page === n.id ? 'text-[#087F5B] border-b-2 border-[#087F5B]' : 'text-[#667085]'
+            className={`flex-1 min-w-0 flex flex-col items-center justify-center gap-0.5 py-2 transition-colors ${
+              page === n.id ? 'text-[#087F5B]' : 'text-[#667085]'
             }`}>
-            {n.label}
+            <span className="text-base leading-none">{n.icon}</span>
+            <span className="text-[9px] font-semibold leading-none truncate max-w-full px-0.5">{n.label}</span>
+            {page === n.id && <span className="w-5 h-0.5 rounded-full bg-[#087F5B] mt-0.5" />}
           </button>
         ))}
       </div>

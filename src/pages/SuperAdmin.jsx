@@ -23,6 +23,14 @@ export default function SuperAdmin({ session, profile }) {
     email: '', password: '', laboratoire_id: '', agence_id: ''
   })
 
+  // ===== Compte Country Manager — sommet de la hiérarchie d'une agence,
+  // créé uniquement par le Superadmin (jamais par un rôle inférieur) =====
+  const [showCmForm, setShowCmForm] = useState(false)
+  const [savingCm, setSavingCm] = useState(false)
+  const [cmForm, setCmForm] = useState({
+    email: '', password: '', nom: '', prenom: '', telephone: '', agence_id: ''
+  })
+
   useEffect(() => {
     fetchAll()
     const interval = setInterval(fetchAll, 30000)
@@ -109,6 +117,42 @@ export default function SuperAdmin({ session, profile }) {
     setShowLaboForm(false)
     setLaboForm({ email: '', password: '', laboratoire_id: '', agence_id: '' })
     setSuccessMsg('Compte laboratoire créé !')
+    setTimeout(() => setSuccessMsg(''), 3000)
+    fetchAll()
+  }
+
+  const handleCreateCountryManagerAccount = async () => {
+    if (!cmForm.email || !cmForm.password || !cmForm.agence_id || !cmForm.nom || !cmForm.prenom) {
+      alert('Tous les champs obligatoires (*) doivent être remplis')
+      return
+    }
+    setSavingCm(true)
+
+    const { data: authData, error: authError } = await supabase.auth.signUp({
+      email: cmForm.email, password: cmForm.password
+    })
+    if (authError) { alert('Erreur : ' + authError.message); setSavingCm(false); return }
+    if (!authData.user) { alert('Erreur : compte non créé'); setSavingCm(false); return }
+
+    // Fiche d'identité — sommet de la hiérarchie, aucun country_manager_id au-dessus
+    const { data: newManager, error: errManager } = await supabase.from('managers').insert({
+      agence_id: cmForm.agence_id,
+      nom: cmForm.nom, prenom: cmForm.prenom,
+      telephone: cmForm.telephone || null, email: cmForm.email,
+      statut: 'actif', country_manager_id: null
+    }).select().single()
+    if (errManager) { alert('Erreur création fiche : ' + errManager.message); setSavingCm(false); return }
+
+    const { error: errProfile } = await supabase.from('profiles').insert({
+      id: authData.user.id, role: 'country_manager',
+      agence_id: cmForm.agence_id, manager_id: newManager.id, actif: true
+    })
+    if (errProfile) { alert('Erreur : ' + errProfile.message); setSavingCm(false); return }
+
+    setSavingCm(false)
+    setShowCmForm(false)
+    setCmForm({ email: '', password: '', nom: '', prenom: '', telephone: '', agence_id: '' })
+    setSuccessMsg('Compte Country Manager créé !')
     setTimeout(() => setSuccessMsg(''), 3000)
     fetchAll()
   }
@@ -222,6 +266,71 @@ export default function SuperAdmin({ session, profile }) {
                 <button onClick={handleCreateLaboAccount} disabled={savingLabo}
                   className="flex-1 bg-[#087F5B] text-white font-semibold py-3 rounded-lg text-sm">
                   {savingLabo ? 'Création...' : 'Créer'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal compte Country Manager */}
+      {showCmForm && (
+        <div className="fixed inset-0 bg-[#172B4D]/60 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl p-6 w-full max-w-sm max-h-screen overflow-y-auto">
+            <h2 className="font-semibold text-[#172B4D] text-lg mb-1">Nouveau Country Manager</h2>
+            <p className="text-xs text-[#98A2B3] mb-4">
+              Sommet de la hiérarchie de l'agence — il créera ensuite lui-même ses Managers.
+            </p>
+            <div className="flex flex-col gap-4">
+              <div>
+                <label className="text-xs font-medium text-[#667085] uppercase tracking-wide">Agence *</label>
+                <select value={cmForm.agence_id}
+                  onChange={e => setCmForm(f => ({ ...f, agence_id: e.target.value }))}
+                  className="w-full mt-1 p-3 rounded-lg border border-[#DDE4EA] bg-white text-sm text-[#172B4D]">
+                  <option value="">Sélectionner une agence...</option>
+                  {agences.map(a => <option key={a.id} value={a.id}>{a.nom}</option>)}
+                </select>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-xs font-medium text-[#667085] uppercase tracking-wide">Prénom *</label>
+                  <input value={cmForm.prenom} onChange={e => setCmForm(f => ({ ...f, prenom: e.target.value }))}
+                    className="w-full mt-1 p-3 rounded-lg border border-[#DDE4EA] bg-white text-sm text-[#172B4D]" />
+                </div>
+                <div>
+                  <label className="text-xs font-medium text-[#667085] uppercase tracking-wide">Nom *</label>
+                  <input value={cmForm.nom} onChange={e => setCmForm(f => ({ ...f, nom: e.target.value }))}
+                    className="w-full mt-1 p-3 rounded-lg border border-[#DDE4EA] bg-white text-sm text-[#172B4D]" />
+                </div>
+              </div>
+              <div>
+                <label className="text-xs font-medium text-[#667085] uppercase tracking-wide">Téléphone</label>
+                <input value={cmForm.telephone} onChange={e => setCmForm(f => ({ ...f, telephone: e.target.value }))}
+                  className="w-full mt-1 p-3 rounded-lg border border-[#DDE4EA] bg-white text-sm text-[#172B4D]"
+                  placeholder="00223XXXXXXXX" />
+              </div>
+              <div>
+                <label className="text-xs font-medium text-[#667085] uppercase tracking-wide">Email *</label>
+                <input type="email" value={cmForm.email}
+                  onChange={e => setCmForm(f => ({ ...f, email: e.target.value }))}
+                  className="w-full mt-1 p-3 rounded-lg border border-[#DDE4EA] bg-white text-sm text-[#172B4D]"
+                  placeholder="email@exemple.com" />
+              </div>
+              <div>
+                <label className="text-xs font-medium text-[#667085] uppercase tracking-wide">Mot de passe *</label>
+                <input type="password" value={cmForm.password}
+                  onChange={e => setCmForm(f => ({ ...f, password: e.target.value }))}
+                  className="w-full mt-1 p-3 rounded-lg border border-[#DDE4EA] bg-white text-sm text-[#172B4D]"
+                  placeholder="Min. 6 caractères" />
+              </div>
+              <div className="flex gap-3">
+                <button onClick={() => { setShowCmForm(false); setCmForm({ email: '', password: '', nom: '', prenom: '', telephone: '', agence_id: '' }) }}
+                  className="flex-1 bg-[#EEF1F4] text-[#667085] font-semibold py-3 rounded-lg text-sm">
+                  Annuler
+                </button>
+                <button onClick={handleCreateCountryManagerAccount} disabled={savingCm}
+                  className="flex-1 bg-[#087F5B] text-white font-semibold py-3 rounded-lg text-sm">
+                  {savingCm ? 'Création...' : 'Créer'}
                 </button>
               </div>
             </div>
@@ -371,6 +480,10 @@ export default function SuperAdmin({ session, profile }) {
             <button onClick={() => setPage('agences')}
               className="w-full bg-[#172B4D] text-white font-semibold py-4 rounded-xl text-sm">
               Gérer les agences
+            </button>
+            <button onClick={() => setShowCmForm(true)}
+              className="w-full bg-white border border-[#DDE4EA] text-[#172B4D] font-semibold py-4 rounded-xl text-sm">
+              👑 Créer compte Country Manager
             </button>
             <button onClick={() => setShowLaboForm(true)}
               className="w-full bg-white border border-[#DDE4EA] text-[#172B4D] font-semibold py-4 rounded-xl text-sm">

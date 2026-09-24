@@ -31,6 +31,60 @@ export default function RapportCoaching({ onBack, profile }) {
   const SCORE_LABELS = { 1: 'Insuffisant', 2: 'À améliorer', 3: 'Satisfaisant', 4: 'Bien', 5: 'Excellent' }
   const SCORE_COLORS = { 1: '#DC2626', 2: '#F59E0B', 3: '#F59E0B', 4: '#087F5B', 5: '#16A34A' }
 
+  // Grille de notation — décrit le comportement observé à chaque niveau,
+  // pour que deux managers notent la même prestation de façon cohérente.
+  const RUBRIC = {
+    preparation_score: {
+      1: 'Arrive sans avoir consulté l\'historique du professionnel, ne sait pas qui il va voir.',
+      2: 'Connaît le nom du professionnel mais ignore l\'historique des visites précédentes.',
+      3: 'A consulté l\'historique mais n\'a pas défini d\'objectif clair pour cette visite.',
+      4: 'Objectif de visite clair, connaît le contexte (dernière visite, produits déjà présentés).',
+      5: 'Objectif précis, anticipe les besoins du professionnel, prépare les supports adaptés à son profil.',
+    },
+    product_knowledge_score: {
+      1: 'Ne connaît pas les caractéristiques de base du produit (dosage, indication).',
+      2: 'Connaît les bases mais hésite ou se trompe sur des détails importants.',
+      3: 'Maîtrise les informations essentielles mais reste approximatif sur les données cliniques.',
+      4: 'Maîtrise complète des caractéristiques, posologie, et principales données cliniques.',
+      5: 'Maîtrise experte, capable de répondre à des questions cliniques pointues sans notes.',
+    },
+    presentation_score: {
+      1: 'Lit un support sans reformuler, présentation mécanique.',
+      2: 'Présente le produit mais de façon désorganisée ou trop longue.',
+      3: 'Présentation claire mais générique, identique quel que soit l\'interlocuteur.',
+      4: 'Présentation structurée, adaptée au temps disponible et à l\'interlocuteur.',
+      5: 'Présentation fluide, engageante, parfaitement calibrée à la spécialité du professionnel.',
+    },
+    argumentation_score: {
+      1: 'Ne présente aucun argument clinique, aucune réponse aux réserves.',
+      2: 'Argumente mais de façon désorganisée, ne répond pas aux objections.',
+      3: 'Argumentation correcte mais générique, peu adaptée au profil du praticien.',
+      4: 'Argumentation structurée et adaptée, répond aux objections courantes.',
+      5: 'Argumentation experte, anticipe les objections, s\'appuie sur des données cliniques précises.',
+    },
+    listening_score: {
+      1: 'Monologue, n\'interagit pas avec les remarques du professionnel.',
+      2: 'Écoute superficiellement, coupe la parole ou ignore les questions posées.',
+      3: 'Écoute correctement mais ne rebondit pas sur ce qui est dit.',
+      4: 'Écoute active, reformule et adapte son discours aux réactions du professionnel.',
+      5: 'Écoute experte, détecte les besoins non exprimés et ajuste la visite en conséquence.',
+    },
+    objection_handling_score: {
+      1: 'Se décontenance ou abandonne face à une objection.',
+      2: 'Répond aux objections mais de façon défensive ou peu convaincante.',
+      3: 'Répond correctement aux objections courantes et attendues.',
+      4: 'Traite les objections avec assurance, s\'appuie sur des faits concrets.',
+      5: 'Transforme l\'objection en opportunité, renforce la relation de confiance.',
+    },
+    conclusion_score: {
+      1: 'Quitte sans conclusion ni prochaine étape définie.',
+      2: 'Conclut vaguement, sans engagement clair du professionnel.',
+      3: 'Résume la visite mais sans fixer de prochaine action précise.',
+      4: 'Conclut avec un engagement clair et une prochaine étape définie.',
+      5: 'Conclusion qui sécurise un engagement concret et planifie la suite avec précision.',
+    },
+  }
+
   useEffect(() => { fetchAll() }, [])
 
   const fetchAll = async () => {
@@ -123,6 +177,13 @@ export default function RapportCoaching({ onBack, profile }) {
         ))}
       </div>
       <p className="text-xs text-[#98A2B3] text-center">{SCORE_LABELS[form[criterKey]]}</p>
+      {RUBRIC[criterKey]?.[form[criterKey]] && (
+        <div className="bg-[#F4F7F9] rounded-lg p-2.5 mt-1">
+          <p className="text-xs text-[#172B4D] leading-snug">
+            {RUBRIC[criterKey][form[criterKey]]}
+          </p>
+        </div>
+      )}
     </div>
   )
 

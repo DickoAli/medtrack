@@ -7,42 +7,61 @@ export default function GestionDelegues({ onBack, profile }) {
   const [territoires, setTerritoires] = useState([])
   const [portfolios, setPortfolios] = useState([])
   const [visites, setVisites] = useState([])
-  const [managers, setManagers] = useState([])
+  const [managers, setManagers] = useState([]) // ⚠ chef d'équipe informel (vient de delegates, pas de managers)
+  const [managerAccounts, setManagerAccounts] = useState([]) // vrais comptes Manager, pour "Manager responsable"
   const [loading, setLoading] = useState(true)
   const [showForm, setShowForm] = useState(false)
   const [editing, setEditing] = useState(null)
   const [saving, setSaving] = useState(false)
   const [successMsg, setSuccessMsg] = useState('')
+  const [fetchError, setFetchError] = useState('')
   const [search, setSearch] = useState('')
   const [filterStatut, setFilterStatut] = useState('tous')
   const [filterTerritory, setFilterTerritory] = useState('tous')
   const [form, setForm] = useState({
     nom: '', prenom: '', email: '', telephone: '',
-    territory_id: '', manager_id: '', statut: 'actif', date_entree: ''
+    territory_id: '', manager_id: '', real_manager_id: '', statut: 'actif', date_entree: '', extranet_access: true
   })
 
   useEffect(() => { fetchAll() }, [])
 
   const fetchAll = async () => {
-    const [{ data: d }, { data: t }, { data: p }, { data: v }, { data: m }] = await Promise.all([
+    const [
+      { data: d, error: errD },
+      { data: t, error: errT },
+      { data: p, error: errP },
+      { data: v, error: errV },
+      { data: m, error: errM },
+      { data: ma, error: errMa }
+    ] = await Promise.all([
       supabase.from('delegates').select('*, territories(nom)').eq('agence_id', profile.agence_id).order('nom'),
       supabase.from('territories').select('*').eq('agence_id', profile.agence_id).eq('is_active', true).order('nom'),
       supabase.from('delegate_portfolios').select('delegate_id').eq('agence_id', profile.agence_id).eq('is_active', true),
       supabase.from('visites').select('delegate_id, statut, created_at').eq('agence_id', profile.agence_id),
-      supabase.from('delegates').select('id, nom, prenom').eq('agence_id', profile.agence_id).order('nom')
+      supabase.from('delegates').select('id, nom, prenom').eq('agence_id', profile.agence_id).order('nom'),
+      supabase.from('profiles').select('*, managers(id, nom, prenom)').eq('agence_id', profile.agence_id).eq('role', 'manager')
     ])
+
+    if (errD || errT || errP || errV || errM || errMa) {
+      console.error('Erreur chargement délégués:', { errD, errT, errP, errV, errM, errMa })
+      setFetchError((errD || errT || errP || errV || errM || errMa).message)
+    } else {
+      setFetchError('')
+    }
+
     setDelegates(d || [])
     setTerritoires(t || [])
     setPortfolios(p || [])
     setVisites(v || [])
     setManagers(m || [])
+    setManagerAccounts((ma || []).filter(a => a.managers))
     setLoading(false)
   }
 
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }))
   const resetForm = () => setForm({
     nom: '', prenom: '', email: '', telephone: '',
-    territory_id: '', manager_id: '', statut: 'actif', date_entree: ''
+    territory_id: '', manager_id: '', real_manager_id: '', statut: 'actif', date_entree: '', extranet_access: true
   })
 
   const handleSave = async () => {
@@ -51,19 +70,23 @@ export default function GestionDelegues({ onBack, profile }) {
     setSaving(true)
 
     if (editing) {
-      await supabase.from('delegates').update({
+      const { error } = await supabase.from('delegates').update({
         nom: form.nom, prenom: form.prenom, email: form.email,
         telephone: form.telephone || null, territory_id: form.territory_id || null,
-        manager_id: form.manager_id || null, statut: form.statut,
-        date_entree: form.date_entree || null, updated_at: new Date().toISOString()
+        manager_id: form.manager_id || null, real_manager_id: form.real_manager_id || null, statut: form.statut,
+        date_entree: form.date_entree || null, extranet_access: form.extranet_access,
+        updated_at: new Date().toISOString()
       }).eq('id', editing)
+      if (error) { alert('Erreur : ' + error.message); setSaving(false); return }
     } else {
-      await supabase.from('delegates').insert({
+      const { error } = await supabase.from('delegates').insert({
         nom: form.nom, prenom: form.prenom, email: form.email,
         telephone: form.telephone || null, territory_id: form.territory_id || null,
-        manager_id: form.manager_id || null, statut: form.statut,
-        date_entree: form.date_entree || null, agence_id: profile.agence_id
+        manager_id: form.manager_id || null, real_manager_id: form.real_manager_id || null, statut: form.statut,
+        date_entree: form.date_entree || null, extranet_access: form.extranet_access,
+        agence_id: profile.agence_id
       })
+      if (error) { alert('Erreur : ' + error.message); setSaving(false); return }
     }
 
     setSaving(false)
@@ -79,10 +102,19 @@ export default function GestionDelegues({ onBack, profile }) {
     setEditing(d.id)
     setForm({
       nom: d.nom, prenom: d.prenom, email: d.email, telephone: d.telephone || '',
-      territory_id: d.territory_id || '', manager_id: d.manager_id || '',
-      statut: d.statut || 'actif', date_entree: d.date_entree || ''
+      territory_id: d.territory_id || '', manager_id: d.manager_id || '', real_manager_id: d.real_manager_id || '',
+      statut: d.statut || 'actif', date_entree: d.date_entree || '',
+      extranet_access: d.extranet_access !== false // défaut à true si colonne pas encore renseignée
     })
     setShowForm(true)
+  }
+
+  const toggleExtranetAccess = async (d) => {
+    const { error } = await supabase.from('delegates')
+      .update({ extranet_access: !(d.extranet_access !== false) })
+      .eq('id', d.id)
+    if (error) { alert('Erreur : ' + error.message); return }
+    fetchAll()
   }
 
   const handleDelete = async (id) => {
@@ -186,6 +218,12 @@ export default function GestionDelegues({ onBack, profile }) {
         </div>
       )}
 
+      {fetchError && (
+        <div className="mx-5 mt-4 bg-[#FDE8E8] border border-[#DC2626]/20 rounded-xl p-3 text-center">
+          <p className="text-[#DC2626] font-semibold text-sm">⚠️ Erreur de chargement : {fetchError}</p>
+        </div>
+      )}
+
       <div className="px-5 mt-4 grid grid-cols-3 gap-3">
         <div className="bg-white rounded-xl p-3 text-center border border-[#DDE4EA]" style={{ borderLeft: '2px solid #087F5B' }}>
           <p className="text-lg font-semibold text-[#172B4D]">{delegates.filter(d => (d.statut || 'actif') === 'actif').length}</p>
@@ -250,13 +288,26 @@ export default function GestionDelegues({ onBack, profile }) {
 
               <div>
                 <label className="text-xs font-medium text-[#667085] uppercase tracking-wide">Manager responsable</label>
+                <select value={form.real_manager_id} onChange={e => set('real_manager_id', e.target.value)}
+                  className="w-full mt-1 p-3 rounded-lg border border-[#DDE4EA] bg-white text-sm text-[#172B4D]">
+                  <option value="">Aucun</option>
+                  {managerAccounts.map(a => (
+                    <option key={a.managers.id} value={a.managers.id}>{a.managers.prenom} {a.managers.nom}</option>
+                  ))}
+                </select>
+                <p className="text-xs text-[#98A2B3] mt-1">Le vrai Manager qui pilote ce délégué — utilisé pour le coaching Country Manager.</p>
+              </div>
+
+              <div>
+                <label className="text-xs font-medium text-[#667085] uppercase tracking-wide">Chef d'équipe (délégué référent)</label>
                 <select value={form.manager_id} onChange={e => set('manager_id', e.target.value)}
                   className="w-full mt-1 p-3 rounded-lg border border-[#DDE4EA] bg-white text-sm text-[#172B4D]">
-                  <option value="">Aucun manager</option>
+                  <option value="">Aucun</option>
                   {managers.filter(m => m.id !== editing).map(m => (
                     <option key={m.id} value={m.id}>{m.prenom} {m.nom}</option>
                   ))}
                 </select>
+                <p className="text-xs text-[#98A2B3] mt-1">Différent du Manager responsable ci-dessus — simple référent terrain informel.</p>
               </div>
 
               <div>
@@ -274,6 +325,16 @@ export default function GestionDelegues({ onBack, profile }) {
                 <input type="date" value={form.date_entree} onChange={e => set('date_entree', e.target.value)}
                   className="w-full mt-1 p-3 rounded-lg border border-[#DDE4EA] bg-white text-sm text-[#172B4D]" />
               </div>
+
+              <label className="flex items-center gap-2 cursor-pointer bg-[#F4F7F9] p-3 rounded-lg">
+                <input type="checkbox" checked={form.extranet_access}
+                  onChange={e => set('extranet_access', e.target.checked)}
+                  className="w-4 h-4 accent-[#087F5B]" />
+                <span className="text-sm text-[#172B4D]">
+                  🌐 Accès à l'onglet Extranet
+                  <span className="block text-xs text-[#667085] font-normal">Si décoché, l'onglet n'apparaît plus sur l'app de ce délégué.</span>
+                </span>
+              </label>
 
               <div className="flex gap-3">
                 <button onClick={() => { setShowForm(false); setEditing(null) }}
@@ -354,6 +415,11 @@ export default function GestionDelegues({ onBack, profile }) {
                   </div>
 
                   <div className="flex gap-2 flex-shrink-0">
+                    <button onClick={() => toggleExtranetAccess(d)}
+                      title={d.extranet_access !== false ? 'Extranet visible — cliquer pour masquer' : 'Extranet masqué — cliquer pour autoriser'}
+                      className={`px-3 py-1.5 rounded-lg text-xs font-semibold ${
+                        d.extranet_access !== false ? 'bg-[#E7F5EF] text-[#087F5B]' : 'bg-[#EEF1F4] text-[#98A2B3]'
+                      }`}>🌐</button>
                     <button onClick={() => handleEdit(d)}
                       className="bg-[#E8F0FE] text-[#2563EB] px-3 py-1.5 rounded-lg text-xs font-semibold">✏️</button>
                     <button onClick={() => handleDelete(d.id)}

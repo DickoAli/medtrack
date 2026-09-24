@@ -6,6 +6,7 @@ import Login from './pages/Login'
 import Dashboard from './pages/Dashboard'
 import DelegueApp from './pages/DelegueApp'
 import SuperAdmin from './pages/SuperAdmin'
+import CountryManagerDashboard from './pages/CountryManagerDashboard'
 
 export default function App() {
   const [session, setSession] = useState(null)
@@ -16,7 +17,7 @@ export default function App() {
   const loadProfile = async (userId) => {
     const { data } = await supabase
       .from('profiles')
-      .select('*, delegates(*)')
+      .select('*, delegates(*), managers(*)')
       .eq('id', userId)
       .single()
     setProfile(data)
@@ -115,6 +116,9 @@ export default function App() {
 
   if (profile.role_global === 'superadmin') return <SuperAdmin session={session} profile={profile} />
   if (profile.role === 'client_labo') return <DashboardLabo session={session} profile={profile} />
+  if (profile.role === 'country_manager') {
+    return <CountryManagerDashboard session={session} profile={profile} agence={agence} />
+  }
   if (profile.role === 'manager') {
   return <Dashboard session={session} profile={profile} agence={agence} />
 }
