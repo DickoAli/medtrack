@@ -36,6 +36,20 @@ function RecenterMap({ center }) {
   return null
 }
 
+// Leaflet mesure son conteneur à l'instant où il est créé. Si la mise en page
+// n'est pas encore stabilisée (onglet, pile de navigation), il garde une
+// mauvaise taille et affiche du gris. On lui demande de re-mesurer.
+function FixMapSize() {
+  const map = useMap()
+  useEffect(() => {
+    const timers = [100, 400].map(ms => setTimeout(() => map.invalidateSize(), ms))
+    const onResize = () => map.invalidateSize()
+    window.addEventListener('resize', onResize)
+    return () => { timers.forEach(clearTimeout); window.removeEventListener('resize', onResize) }
+  }, [map])
+  return null
+}
+
 export default function Carte({ onBack, profile }) {
   const [delegates, setDelegates] = useState([])
   const [etablissements, setEtablissements] = useState([])
@@ -171,10 +185,13 @@ export default function Carte({ onBack, profile }) {
             </div>
           </div>
 
-          <div className="flex-1" style={{ minHeight: '400px' }}>
+          {/* Hauteur EXPLICITE : une hauteur en % d'un parent sans hauteur définie
+              vaut 0 en CSS — c'est ce qui donnait une carte grise vide. */}
+          <div style={{ height: 'calc(100vh - 300px)', minHeight: '400px', width: '100%' }}>
             <MapContainer center={center} zoom={12} style={{ height: '100%', width: '100%' }}>
               <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" attribution='© OpenStreetMap' />
               <RecenterMap center={center} />
+              <FixMapSize />
 
               {showDelegates && delegates.map(d => (
                 d.last_lat && d.last_lng && (

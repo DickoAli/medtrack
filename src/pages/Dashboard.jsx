@@ -575,7 +575,7 @@ export default function Dashboard({ session, profile, agence }) {
             <NavBtn id="statistiques" icon="ti-chart-bar" label="Statistiques" />
             <NavBtn id="stats-avancees" icon="ti-chart-line" label="Stats avancées" />
             <NavBtn id="coaching" icon="ti-trophy" label="Coaching" />
-            <NavBtn id="rapports" icon="ti-table" label="Export Excel" />
+            <NavBtn id="rapports" icon="ti-table" label="Visites & comptes rendus" />
             <NavBtn id="pdf" icon="ti-file-download" label="Export PDF" />
             <NavBtn id="fichiers" icon="ti-folder" label="Fichiers stats" />
           </div>

@@ -18,6 +18,8 @@ export default function GestionComptes({ onBack, profile }) {
   const [saving, setSaving] = useState(false)
   const [successMsg, setSuccessMsg] = useState('')
   const [search, setSearch] = useState('')
+  const [pwdTarget, setPwdTarget] = useState(null) // compte dont on change le mot de passe
+  const [newPwd, setNewPwd] = useState('')
 
   const [form, setForm] = useState({
     email: '', password: '',
@@ -109,7 +111,7 @@ export default function GestionComptes({ onBack, profile }) {
 
     if (creatableRole === 'delegue') {
       const { error } = await supabase.from('profiles').insert({
-        id: authData.user.id, role: 'delegue', agence_id: profile.agence_id,
+        id: authData.user.id, role: 'delegue', agence_id: profile.agence_id, email: form.email,
         delegate_id: form.delegate_id || null, actif: true
       })
       if (error) { alert('Erreur : ' + error.message); setSaving(false); return }
@@ -132,7 +134,7 @@ export default function GestionComptes({ onBack, profile }) {
       if (errManager) { alert('Erreur création fiche manager : ' + errManager.message); setSaving(false); return }
 
       const { error: errProfile } = await supabase.from('profiles').insert({
-        id: authData.user.id, role: 'manager', agence_id: profile.agence_id,
+        id: authData.user.id, role: 'manager', agence_id: profile.agence_id, email: form.email,
         manager_id: newManager.id, actif: true
       })
       if (errProfile) { alert('Erreur : ' + errProfile.message); setSaving(false); return }
@@ -144,6 +146,21 @@ export default function GestionComptes({ onBack, profile }) {
     setSuccessMsg('Compte créé !')
     setTimeout(() => setSuccessMsg(''), 3000)
     fetchAll()
+  }
+
+  // Le mot de passe actuel n'est jamais lisible (stocké chiffré) : on en définit un nouveau.
+  // La fonction serveur vérifie elle-même que l'appelant est bien le responsable direct.
+  const handleResetPassword = async () => {
+    if (newPwd.length < 6) { alert('Le mot de passe doit contenir au moins 6 caractères'); return }
+    setSaving(true)
+    const { error } = await supabase.rpc('reset_password_by_manager', {
+      target_profile_id: pwdTarget.id, new_password: newPwd
+    })
+    setSaving(false)
+    if (error) { alert('Erreur : ' + error.message); return }
+    alert(`✅ Nouveau mot de passe enregistré.\nCommuniquez-le à la personne : ${newPwd}`)
+    setPwdTarget(null)
+    setNewPwd('')
   }
 
   const toggleActif = async (c) => {
@@ -377,6 +394,9 @@ export default function GestionComptes({ onBack, profile }) {
                       </span>
                     </div>
 
+                    <p className="text-xs text-[#667085]">
+                      ✉️ Identifiant : {c.email || <span className="italic text-[#98A2B3]">non renseigné</span>}
+                    </p>
                     {creatableRole === 'manager' && c.managers?.telephone && (
                       <p className="text-xs text-[#667085]">📞 {c.managers.telephone}</p>
                     )}
@@ -405,18 +425,49 @@ export default function GestionComptes({ onBack, profile }) {
                     )}
                   </div>
 
-                  <button onClick={() => toggleActif(c)}
-                    className={`px-3 py-1.5 rounded-lg text-xs font-semibold flex-shrink-0 ${
-                      c.actif ? 'bg-[#EEF1F4] text-[#667085]' : 'bg-[#E7F5EF] text-[#087F5B]'
-                    }`}>
-                    {c.actif ? '⏸ Désactiver' : '▶ Activer'}
-                  </button>
+                  <div className="flex flex-col gap-2 flex-shrink-0">
+                    <button onClick={() => toggleActif(c)}
+                      className={`px-3 py-1.5 rounded-lg text-xs font-semibold ${
+                        c.actif ? 'bg-[#EEF1F4] text-[#667085]' : 'bg-[#E7F5EF] text-[#087F5B]'
+                      }`}>
+                      {c.actif ? '⏸ Désactiver' : '▶ Activer'}
+                    </button>
+                    <button onClick={() => { setPwdTarget(c); setNewPwd('') }}
+                      className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-[#E8F0FE] text-[#2563EB]">
+                      🔑 Mot de passe
+                    </button>
+                  </div>
                 </div>
               </div>
             )
           })
         )}
       </div>
+
+      {pwdTarget && (
+        <div className="fixed inset-0 bg-[#172B4D]/60 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl p-6 w-full max-w-sm shadow-2xl">
+            <h2 className="font-semibold text-[#172B4D] text-lg mb-1">Nouveau mot de passe</h2>
+            <p className="text-xs text-[#667085] mb-4">
+              Compte : {pwdTarget.email || 'identifiant non renseigné'}.
+              L'ancien mot de passe n'est jamais visible : vous en définissez un nouveau.
+            </p>
+            <input type="text" value={newPwd} onChange={e => setNewPwd(e.target.value)}
+              className="w-full p-3 rounded-lg border border-[#DDE4EA] bg-white text-sm text-[#172B4D] mb-4"
+              placeholder="Min. 6 caractères" />
+            <div className="flex gap-3">
+              <button onClick={() => { setPwdTarget(null); setNewPwd('') }}
+                className="flex-1 bg-[#EEF1F4] text-[#667085] font-semibold py-3 rounded-lg text-sm">
+                Annuler
+              </button>
+              <button onClick={handleResetPassword} disabled={saving}
+                className="flex-1 bg-[#087F5B] text-white font-semibold py-3 rounded-lg text-sm">
+                {saving ? '...' : 'Enregistrer'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

@@ -21,7 +21,7 @@ export default function Rapports({ onBack, profile }) {
   const fetchAll = async () => {
     const [{ data: v }, { data: d }, { data: c }] = await Promise.all([
       supabase.from('visites')
-        .select('*, delegates(nom, prenom), healthcare_professionals(nom, prenom, specialite, commercial_targets(priority)), establishments(nom, type), campaigns(nom)')
+        .select('*, delegates(nom, prenom), healthcare_professionals(nom, prenom, specialite, commercial_targets(priority)), establishments(nom, type), campaigns(nom), visit_reports(*)')
         .eq('agence_id', profile.agence_id)
         .order('created_at', { ascending: false }),
       supabase.from('delegates').select('*').eq('agence_id', profile.agence_id).order('nom'),
@@ -268,6 +268,7 @@ export default function Rapports({ onBack, profile }) {
                 )}
               </div>
             </div>
+            <CompteRendu report={Array.isArray(v.visit_reports) ? v.visit_reports[0] : v.visit_reports} />
           </div>
         ))}
         {filtered.length > 20 && (
@@ -277,5 +278,38 @@ export default function Rapports({ onBack, profile }) {
         )}
       </div>
     </div>
+  )
+}
+
+// Compte rendu rédigé par le délégué après sa visite (table visit_reports)
+function CompteRendu({ report }) {
+  if (!report) {
+    return <p className="text-xs text-[#98A2B3] mt-2 pt-2 border-t border-[#EEF1F4]">📝 Aucun compte rendu rédigé</p>
+  }
+  const lignes = [
+    ['Résultat', report.result],
+    ['Intérêt du professionnel', report.interest_level],
+    ['Objections', report.objections],
+    ['Produits concurrents cités', report.competitor_products],
+    ['Questions posées', report.questions],
+    ['Échantillons remis', report.samples_given > 0 ? report.samples_given : null],
+    ['Prochaine action', report.next_action],
+    ['Prochaine visite', report.next_visit_date ? new Date(report.next_visit_date).toLocaleDateString('fr-FR') : null],
+    ['Notes', report.notes],
+  ].filter(([, val]) => val !== null && val !== undefined && val !== '')
+
+  return (
+    <details className="mt-2 pt-2 border-t border-[#EEF1F4]">
+      <summary className="text-xs font-semibold text-[#087F5B] cursor-pointer">📝 Voir le compte rendu</summary>
+      <div className="mt-2 flex flex-col gap-1.5 bg-[#F4F7F9] rounded-lg p-3">
+        {lignes.length === 0 ? (
+          <p className="text-xs text-[#98A2B3]">Compte rendu vide</p>
+        ) : lignes.map(([label, val]) => (
+          <p key={label} className="text-xs text-[#172B4D]">
+            <span className="font-semibold">{label} : </span>{String(val)}
+          </p>
+        ))}
+      </div>
+    </details>
   )
 }

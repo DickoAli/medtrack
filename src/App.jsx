@@ -114,6 +114,27 @@ export default function App() {
     }
   }
 
+  // Compte désactivé par son responsable : accès refusé, quel que soit le rôle
+  // Désactivé depuis "Comptes" (actif) ou depuis la fiche "Délégués" (statut inactif)
+  const compteBloque = profile.actif === false || profile.delegates?.statut === 'inactif'
+  if (compteBloque && profile.role_global !== 'superadmin') {
+    return (
+      <div className="min-h-screen bg-[#F4F7F9] flex items-center justify-center p-6">
+        <div className="bg-white rounded-xl p-8 w-full max-w-sm text-center border border-[#DDE4EA]">
+          <p className="text-4xl mb-3">🔒</p>
+          <h1 className="text-lg font-semibold text-[#172B4D] mb-2">Compte désactivé</h1>
+          <p className="text-sm text-[#667085] mb-6">
+            Votre accès à MedTrack a été suspendu. Contactez votre responsable pour le réactiver.
+          </p>
+          <button onClick={() => supabase.auth.signOut()}
+            className="w-full bg-[#EEF1F4] text-[#667085] font-semibold py-3 rounded-lg text-sm">
+            Se déconnecter
+          </button>
+        </div>
+      </div>
+    )
+  }
+
   if (profile.role_global === 'superadmin') return <SuperAdmin session={session} profile={profile} />
   if (profile.role === 'client_labo') return <DashboardLabo session={session} profile={profile} />
   if (profile.role === 'country_manager') {

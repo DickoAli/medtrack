@@ -15,7 +15,7 @@ export default function GestionContenu({ onBack, profile }) {
   const [filterType, setFilterType] = useState('tous')
   const [form, setForm] = useState({
     nom: '', type: 'pdf', laboratoire_id: '', produit_id: '', campaign_id: '',
-    version: '1.0', is_published: false, is_offline: true, file: null
+    version: '1.0', is_published: true, is_offline: true, file: null
   })
 
   const TYPES = ['pdf', 'image', 'video', 'presentation', 'document']
@@ -50,7 +50,7 @@ export default function GestionContenu({ onBack, profile }) {
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }))
   const resetForm = () => setForm({
     nom: '', type: 'pdf', laboratoire_id: '', produit_id: '', campaign_id: '',
-    version: '1.0', is_published: false, is_offline: true, file: null
+    version: '1.0', is_published: true, is_offline: true, file: null
   })
 
   const handleSave = async () => {
@@ -73,7 +73,7 @@ export default function GestionContenu({ onBack, profile }) {
     const file_url = `${import.meta.env.VITE_SUPABASE_URL}/storage/v1/object/public/STATLABO/${fileName}`
     setUploading(false)
 
-    await supabase.from('content_assets').insert({
+    const { error: insertError } = await supabase.from('content_assets').insert({
       agence_id: profile.agence_id, laboratoire_id: form.laboratoire_id,
       produit_id: form.produit_id || null, campaign_id: form.campaign_id || null,
       nom: form.nom, type: form.type, file_url, file_size: form.file.size,
@@ -82,6 +82,10 @@ export default function GestionContenu({ onBack, profile }) {
     })
 
     setSaving(false)
+    if (insertError) {
+      alert('Le fichier est envoyé mais le support n\'a pas été enregistré : ' + insertError.message)
+      return
+    }
     setShowForm(false)
     resetForm()
     setSuccessMsg('Support ajouté !')

@@ -124,10 +124,12 @@ export default function RapportCoaching({ onBack, profile }) {
 
   const handleSave = async () => {
     if (!form.delegate_id) { alert('Sélectionnez un délégué'); return }
+    // La base exige une visite : un coaching documente toujours une visite réelle
+    if (!form.visit_id) { alert('Sélectionnez la visite observée pendant le coaching'); return }
     setSaving(true)
 
-    await supabase.from('coaching_reports').insert({
-      visit_id: form.visit_id || null,
+    const { error } = await supabase.from('coaching_reports').insert({
+      visit_id: form.visit_id,
       delegate_id: form.delegate_id,
       evaluator_id: profile.id,
       preparation_score: parseInt(form.preparation_score),
@@ -144,6 +146,11 @@ export default function RapportCoaching({ onBack, profile }) {
     })
 
     setSaving(false)
+    if (error) {
+      console.error('Erreur coaching:', error)
+      alert('Le coaching n\'a pas été enregistré : ' + error.message)
+      return
+    }
     setShowForm(false)
     resetForm()
     setSuccessMsg('Rapport de coaching enregistré !')
@@ -240,10 +247,10 @@ export default function RapportCoaching({ onBack, profile }) {
               </div>
 
               <div>
-                <label className="text-xs font-medium text-[#667085] uppercase tracking-wide">Visite liée (optionnel)</label>
+                <label className="text-xs font-medium text-[#667085] uppercase tracking-wide">Visite observée *</label>
                 <select value={form.visit_id} onChange={e => set('visit_id', e.target.value)}
                   className="w-full mt-1 p-3 rounded-lg border border-[#DDE4EA] bg-white text-sm text-[#172B4D]">
-                  <option value="">Aucune visite spécifique</option>
+                  <option value="">Sélectionner la visite...</option>
                   {visites.filter(v => !form.delegate_id || v.delegate_id === form.delegate_id).map(v => (
                     <option key={v.id} value={v.id}>{v.nom_contact || '—'} · {v.created_at?.slice(0, 10)}</option>
                   ))}

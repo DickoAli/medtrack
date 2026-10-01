@@ -10,6 +10,7 @@ export default function PlanificationVisites({ onBack, profile }) {
   const [loading, setLoading] = useState(true)
   const [showForm, setShowForm] = useState(false)
   const [editing, setEditing] = useState(null)
+  const [rescheduling, setRescheduling] = useState(false) // true = on choisit une nouvelle date
   const [saving, setSaving] = useState(false)
   const [successMsg, setSuccessMsg] = useState('')
   const [filterDelegate, setFilterDelegate] = useState('tous')
@@ -98,15 +99,26 @@ export default function PlanificationVisites({ onBack, profile }) {
       updated_at: new Date().toISOString()
     }
 
+    let error
     if (editing) {
-      await supabase.from('visit_plans').update(data).eq('id', editing)
+      ({ error } = await supabase.from('visit_plans')
+        .update(rescheduling ? { ...data, statut: 'pending' } : data)
+        .eq('id', editing))
     } else {
-      await supabase.from('visit_plans').insert(data)
+      // Statut explicite : l'app délégué n'affiche que 'pending' et 'confirmed',
+      // on ne dépend donc plus d'une valeur par défaut en base.
+      ({ error } = await supabase.from('visit_plans').insert({ ...data, statut: 'pending' }))
     }
 
     setSaving(false)
+    if (error) {
+      console.error('Erreur planification visite:', error)
+      alert('La visite n\'a pas été enregistrée : ' + error.message)
+      return
+    }
     setShowForm(false)
     setEditing(null)
+    setRescheduling(false)
     resetForm()
     setSuccessMsg('Visite planifiée !')
     setTimeout(() => setSuccessMsg(''), 3000)
@@ -194,17 +206,19 @@ export default function PlanificationVisites({ onBack, profile }) {
           </div>
           {p.notes && <p className="text-xs text-[#667085] italic mt-1">{p.notes}</p>}
 
-          {p.statut === 'pending' && (
+          {['pending', 'confirmed', 'rescheduled'].includes(p.statut) && (
             <div className="flex gap-2 mt-2">
-              <button onClick={() => changeStatut(p.id, 'confirmed')}
-                className="text-xs bg-[#E7F5EF] text-[#087F5B] font-semibold px-2 py-1 rounded-lg">
-                ✓ Confirmer
-              </button>
+              {p.statut !== 'confirmed' && (
+                <button onClick={() => changeStatut(p.id, 'confirmed')}
+                  className="text-xs bg-[#E7F5EF] text-[#087F5B] font-semibold px-2 py-1 rounded-lg">
+                  ✓ Confirmer
+                </button>
+              )}
               <button onClick={() => changeStatut(p.id, 'cancelled')}
                 className="text-xs bg-[#FDE8E8] text-[#DC2626] font-semibold px-2 py-1 rounded-lg">
                 ✕ Annuler
               </button>
-              <button onClick={() => changeStatut(p.id, 'rescheduled')}
+              <button onClick={() => { handleEdit(p); setRescheduling(true) }}
                 className="text-xs bg-[#EEF1F4] text-[#667085] font-semibold px-2 py-1 rounded-lg">
                 ↻ Reprogrammer
               </button>
@@ -270,7 +284,7 @@ export default function PlanificationVisites({ onBack, profile }) {
         <div className="fixed inset-0 bg-[#172B4D]/60 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-xl p-6 w-full max-w-sm shadow-2xl max-h-screen overflow-y-auto">
             <h2 className="font-semibold text-[#172B4D] text-lg mb-4">
-              {editing ? 'Modifier la planification' : 'Planifier une visite'}
+              {rescheduling ? 'Reprogrammer : choisissez la nouvelle date' : editing ? 'Modifier la planification' : 'Planifier une visite'}
             </h2>
             <div className="flex flex-col gap-4">
               <div>
@@ -362,7 +376,7 @@ export default function PlanificationVisites({ onBack, profile }) {
               </div>
 
               <div className="flex gap-3">
-                <button onClick={() => { setShowForm(false); setEditing(null) }}
+                <button onClick={() => { setShowForm(false); setEditing(null); setRescheduling(false) }}
                   className="flex-1 bg-[#EEF1F4] text-[#667085] font-semibold py-3 rounded-lg text-sm">
                   Annuler
                 </button>

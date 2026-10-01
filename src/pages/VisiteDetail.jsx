@@ -34,10 +34,17 @@ export default function VisiteDetail({ visite, onBack, profile }) {
     setSaving(true)
     const data = { visit_id: visite.id, ...form, samples_given: parseInt(form.samples_given) || 0, submitted_at: new Date().toISOString() }
 
+    let error
     if (report) {
-      await supabase.from('visit_reports').update(data).eq('id', report.id)
+      ({ error } = await supabase.from('visit_reports').update(data).eq('id', report.id))
     } else {
-      await supabase.from('visit_reports').insert(data)
+      ({ error } = await supabase.from('visit_reports').insert(data))
+    }
+
+    if (error) {
+      setSaving(false)
+      alert('Le compte rendu n\'a pas été enregistré : ' + error.message)
+      return
     }
 
     await supabase.rpc('calculate_confidence_score', { visit_id: visite.id })

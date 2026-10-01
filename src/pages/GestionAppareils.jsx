@@ -22,13 +22,14 @@ export default function GestionAppareils({ onBack, profile }) {
   useEffect(() => { fetchAll() }, [])
 
   const fetchAll = async () => {
-    const [{ data: a }, { data: d }] = await Promise.all([
+    const [{ data: a, error: errA }, { data: d }] = await Promise.all([
       supabase.from('devices')
         .select('*, delegates(nom, prenom)')
         .eq('agence_id', profile.agence_id)
         .order('created_at', { ascending: false }),
       supabase.from('delegates').select('*').eq('agence_id', profile.agence_id).order('nom')
     ])
+    if (errA) { console.error('Erreur chargement appareils:', errA); alert('Erreur de chargement des appareils : ' + errA.message) }
     setAppareils(a || [])
     setDelegates(d || [])
     setLoading(false)
@@ -48,7 +49,7 @@ export default function GestionAppareils({ onBack, profile }) {
     if (!form.device_name) { alert('Le nom de l\'appareil est obligatoire'); return }
     setSaving(true)
 
-    await supabase.from('devices').insert({
+    const { error: errInsert } = await supabase.from('devices').insert({
       agence_id: profile.agence_id, delegate_id: form.delegate_id,
       device_name: form.device_name, device_type: form.device_type,
       device_fingerprint: form.device_fingerprint || null,
@@ -56,6 +57,7 @@ export default function GestionAppareils({ onBack, profile }) {
     })
 
     setSaving(false)
+    if (errInsert) { alert('L\'appareil n\'a pas été enregistré : ' + errInsert.message); return }
     setShowForm(false)
     resetForm()
     setSuccessMsg('Appareil enregistré !')
@@ -90,13 +92,14 @@ export default function GestionAppareils({ onBack, profile }) {
       return
     }
 
-    await supabase.from('devices').insert({
+    const { error: errCurrent } = await supabase.from('devices').insert({
       agence_id: profile.agence_id, delegate_id: delegateId, device_name: deviceName,
       device_type: 'web', device_fingerprint: fp, is_authorized: true,
       registered_by: profile.id, registered_at: new Date().toISOString()
     })
 
     setSaving(false)
+    if (errCurrent) { alert('L\'appareil n\'a pas été enregistré : ' + errCurrent.message); return }
     setSuccessMsg('Appareil actuel enregistré !')
     setTimeout(() => setSuccessMsg(''), 3000)
     fetchAll()

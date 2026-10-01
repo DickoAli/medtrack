@@ -42,10 +42,14 @@ export default function DelegueApp({ session, profile }) {
   })
   const [saving, setSaving] = useState(false)
   const [success, setSuccess] = useState(false)
+  const [refreshing, setRefreshing] = useState(false)
+  const [lastUpdate, setLastUpdate] = useState(null)
+  const [loadError, setLoadError] = useState('')
 
   const fetchData = async () => {
+    setRefreshing(true)
     if (isOnline()) {
-      const [{ data: v }, { data: p }, { data: po }, { data: ag }, { data: sup }, { data: delegateRow }] = await Promise.all([
+      const [{ data: v, error: errV }, { data: p }, { data: po, error: errPo }, { data: ag, error: errAg }, { data: sup }, { data: delegateRow }] = await Promise.all([
         supabase.from('visites')
           .select('*')
           .eq('delegate_id', profile.delegate_id)
@@ -67,23 +71,37 @@ export default function DelegueApp({ session, profile }) {
         supabase.from('content_assets')
           .select('*, produits(nom), laboratoires(nom)')
           .eq('agence_id', profile.agence_id)
-          .eq('is_published', true)
-          .eq('is_offline', true),
+          .eq('is_published', true),
         supabase.from('delegates')
           .select('extranet_access')
           .eq('id', profile.delegate_id)
           .single()
       ])
 
+      // Si l'agenda n'a pas pu être chargé, on garde la version en cache au lieu
+      // de l'écraser par une liste vide.
+      let agendaData = ag || []
+      if (errAg) {
+        console.error('Erreur chargement agenda:', errAg)
+        agendaData = await getAgendaOffline()
+      }
+      const firstError = errAg || errV || errPo
+      if (firstError) {
+        setLoadError(`Données non actualisées (${errAg ? 'agenda' : errV ? 'visites' : 'cibles'}) : ${firstError.message}`)
+      } else {
+        setLoadError('')
+        setLastUpdate(new Date())
+      }
+
       setVisites(v || [])
       setProduits(p || [])
       setPortfolio(po || [])
-      setAgenda(ag || [])
+      setAgenda(agendaData)
       setSupports(sup || [])
       setExtranetAccess(delegateRow?.extranet_access !== false)
 
       await Promise.all([
-        saveAgendaOffline(ag || []),
+        ...(errAg ? [] : [saveAgendaOffline(agendaData)]),
         savePortfolioOffline(po || []),
         saveProduitsOffline(p || []),
         saveSupportsOffline(sup || []),
@@ -105,6 +123,7 @@ export default function DelegueApp({ session, profile }) {
     const stats = await getOfflineStats()
     setOfflineStats(stats)
     setLoading(false)
+    setRefreshing(false)
   }
 
   const startTracking = () => {
@@ -165,12 +184,27 @@ export default function DelegueApp({ session, profile }) {
       }, () => { fetchData() })
       .subscribe()
 
+    // Dès que le manager planifie, reprogramme ou annule une visite pour ce délégué
+    const planChannel = supabase
+      .channel('agenda-delegue')
+      .on('postgres_changes', {
+        event: '*', schema: 'public', table: 'visit_plans',
+        filter: `delegate_id=eq.${profile.delegate_id}`
+      }, () => { fetchData() })
+      .subscribe()
+
+    // Actualisation au retour sur l'application (téléphone sorti de veille, onglet réactivé)
+    const onVisible = () => { if (document.visibilityState === 'visible') fetchData() }
+    document.addEventListener('visibilitychange', onVisible)
+
     const interval = setInterval(fetchData, 30000)
     window.addEventListener('online', syncPendingVisites)
 
     return () => {
       clearInterval(interval)
       supabase.removeChannel(channel)
+      supabase.removeChannel(planChannel)
+      document.removeEventListener('visibilitychange', onVisible)
       if (watchRef.current) navigator.geolocation.clearWatch(watchRef.current)
       window.removeEventListener('online', syncPendingVisites)
     }
@@ -318,6 +352,9 @@ export default function DelegueApp({ session, profile }) {
   const todayVisites = visites.filter(v => v.created_at?.slice(0, 10) === todayStr)
   const todayAgenda = agenda.filter(a => a.planned_date === todayStr)
   const upcomingAgenda = agenda.filter(a => a.planned_date > todayStr).slice(0, 5)
+  // Visites planifiées dans le passé et jamais réalisées : avant, elles disparaissaient
+  // de l'agenda sans que le délégué le sache.
+  const overdueAgenda = agenda.filter(a => a.planned_date < todayStr)
 
   const TYPES_LIEU = ['CSRef', 'CSCom', 'Clinique', 'Cabinet de santé', 'Hôpital', 'Pharmacie', 'Autre']
   const TITRES = ['Médecin généraliste', 'Spécialiste', 'Pharmacien', 'Infirmier', 'Directeur', 'Autre']
@@ -364,6 +401,11 @@ export default function DelegueApp({ session, profile }) {
           </div>
         </div>
         <div className="flex items-center gap-3">
+          <button onClick={fetchData} disabled={refreshing} title="Actualiser"
+            className="bg-[#087F5B] text-white px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1">
+            <span className={refreshing ? 'animate-spin inline-block' : 'inline-block'}>🔄</span>
+            <span className="hidden sm:inline">{refreshing ? 'Mise à jour...' : 'Actualiser'}</span>
+          </button>
           <div className={`w-2 h-2 rounded-full ${position ? 'bg-[#16A34A]' : 'bg-[#DC2626]'}`} />
           <button onClick={() => setShowProfil(true)}
             className="w-8 h-8 rounded-full bg-[#087F5B] flex items-center justify-center font-semibold text-white text-sm">
@@ -384,6 +426,20 @@ export default function DelegueApp({ session, profile }) {
       </div>
 
       {/* Hors ligne */}
+      {loadError && (
+        <div className="bg-[#FDE8E8] border-b border-[#DC2626]/20 px-5 py-2.5 flex items-center justify-between gap-3">
+          <p className="text-xs text-[#DC2626] font-semibold">⚠️ {loadError}</p>
+          <button onClick={fetchData} className="text-xs bg-[#DC2626] text-white px-2.5 py-1 rounded-lg font-semibold flex-shrink-0">
+            Réessayer
+          </button>
+        </div>
+      )}
+      {!loadError && lastUpdate && (
+        <p className="text-[10px] text-[#98A2B3] text-right px-5 pt-1">
+          Mis à jour à {lastUpdate.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}
+        </p>
+      )}
+
       {!navigator.onLine && (
         <div className="bg-[#DC2626] px-5 py-2 text-xs font-medium flex items-center justify-between">
           <span className="text-white">📵 Hors ligne</span>
@@ -515,6 +571,31 @@ export default function DelegueApp({ session, profile }) {
             </div>
           ) : (
             <>
+              {overdueAgenda.length > 0 && (
+                <div>
+                  <p className="text-xs text-[#DC2626] font-semibold uppercase tracking-wide mb-2">
+                    En retard ({overdueAgenda.length})
+                  </p>
+                  <div className="flex flex-col gap-3">
+                    {overdueAgenda.map(a => (
+                      <div key={a.id} className="bg-white rounded-xl p-4 border-l-2 border-[#DC2626]">
+                        <p className="font-semibold text-[#172B4D] text-sm">
+                          {a.healthcare_professionals?.prenom} {a.healthcare_professionals?.nom}
+                        </p>
+                        <p className="text-xs text-[#DC2626] font-medium">
+                          Prévue le {new Date(a.planned_date).toLocaleDateString('fr-FR')}
+                          {a.planned_time && ` à ${a.planned_time.slice(0, 5)}`}
+                        </p>
+                        {a.establishments && <p className="text-xs text-[#667085]">🏥 {a.establishments.nom}</p>}
+                        <button onClick={() => startVisiteFromPlan(a)}
+                          className="mt-2 w-full bg-[#DC2626] text-white py-2.5 rounded-lg text-xs font-semibold">
+                          Réaliser maintenant
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
               {todayAgenda.length > 0 && (
                 <div>
                   <p className="text-xs text-[#B45309] font-semibold uppercase tracking-wide mb-2">Aujourd'hui</p>
@@ -556,6 +637,10 @@ export default function DelegueApp({ session, profile }) {
                           {a.planned_time && ` à ${a.planned_time.slice(0, 5)}`}
                         </p>
                         {a.establishments && <p className="text-xs text-[#667085]">🏥 {a.establishments.nom}</p>}
+                        <button onClick={() => startVisiteFromPlan(a)}
+                          className="mt-2 w-full bg-[#E7F5EF] text-[#087F5B] py-2.5 rounded-lg text-xs font-semibold">
+                          Démarrer maintenant
+                        </button>
                       </div>
                     ))}
                   </div>
