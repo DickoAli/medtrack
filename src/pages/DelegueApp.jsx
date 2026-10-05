@@ -42,6 +42,8 @@ export default function DelegueApp({ session, profile }) {
   })
   const [saving, setSaving] = useState(false)
   const [success, setSuccess] = useState(false)
+  // Heure à laquelle le délégué a réellement ouvert la visite (sert au calcul de la durée)
+  const [visitStartedAt, setVisitStartedAt] = useState(null)
   const [refreshing, setRefreshing] = useState(false)
   const [lastUpdate, setLastUpdate] = useState(null)
   const [loadError, setLoadError] = useState('')
@@ -161,6 +163,11 @@ export default function DelegueApp({ session, profile }) {
             produits_ids.map(pid => ({ visite_id: data.id, produit_id: pid, agence_id: profile.agence_id }))
           )
         }
+        // Même traitement qu'une visite enregistrée en ligne : score + planification clôturée
+        await supabase.rpc('calculate_confidence_score', { visit_id: data.id })
+        if (visite.visit_plan_id) {
+          await supabase.from('visit_plans').update({ statut: 'done' }).eq('id', visite.visit_plan_id)
+        }
         await deleteLocalVisite(local_id)
         synced++
       }
@@ -210,6 +217,14 @@ export default function DelegueApp({ session, profile }) {
     }
   }, [])
 
+  // Chronomètre de visite : démarre à l'ouverture d'un formulaire vierge, et se conserve
+  // si le délégué change d'onglet en cours de saisie.
+  useEffect(() => {
+    if (page !== 'visite') return
+    const formVide = !form.nom_contact && form.produits_ids.length === 0
+    if (!visitStartedAt || formVide) setVisitStartedAt(new Date().toISOString())
+  }, [page])
+
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }))
 
   const toggleProduit = (id) => {
@@ -223,6 +238,7 @@ export default function DelegueApp({ session, profile }) {
 
   const resetForm = () => {
     photoFileRef.current = null
+    setVisitStartedAt(null)
     setForm({
       medecin_id: '', produits_ids: [], type_lieu: '',
       nom_contact: '', titre_contact: '', telephone_contact: '',
@@ -265,7 +281,8 @@ export default function DelegueApp({ session, profile }) {
       longitude: form.type === 'immediate' ? position?.lng || null : null,
       gps_start_lat: form.type === 'immediate' ? position?.lat || null : null,
       gps_start_lng: form.type === 'immediate' ? position?.lng || null : null,
-      started_at: form.type === 'immediate' ? new Date().toISOString() : null,
+      started_at: form.type === 'immediate' ? (visitStartedAt || new Date().toISOString()) : null,
+      ended_at: form.type === 'immediate' ? new Date().toISOString() : null,
       type: form.type,
       date_prevue: form.date_prevue || null,
       agence_id: profile.agence_id,
@@ -317,6 +334,7 @@ export default function DelegueApp({ session, profile }) {
   }
 
   const startVisiteFromPlan = (plan) => {
+    setVisitStartedAt(new Date().toISOString())
     setForm(f => ({
       ...f,
       visit_plan_id: plan.id,
