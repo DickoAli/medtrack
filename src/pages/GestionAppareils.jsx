@@ -26,7 +26,7 @@ export default function GestionAppareils({ onBack, profile }) {
       supabase.from('devices')
         .select('*, delegates(nom, prenom)')
         .eq('agence_id', profile.agence_id)
-        .order('created_at', { ascending: false }),
+        .order('registered_at', { ascending: false }),
       supabase.from('delegates').select('*').eq('agence_id', profile.agence_id).order('nom')
     ])
     if (errA) { console.error('Erreur chargement appareils:', errA); alert('Erreur de chargement des appareils : ' + errA.message) }
