@@ -38,7 +38,7 @@ export default function DelegueApp({ session, profile }) {
     statut: 'Réalisée', note: '', type: 'immediate',
     date_prevue: '', photoPreview: null,
     visit_plan_id: '', healthcare_professional_id: '',
-    establishment_id: '', campaign_id: ''
+    establishment_id: '', campaign_id: '', plan_visit_type: ''
   })
   const [saving, setSaving] = useState(false)
   const [success, setSuccess] = useState(false)
@@ -245,7 +245,7 @@ export default function DelegueApp({ session, profile }) {
       statut: 'Réalisée', note: '', type: 'immediate',
       date_prevue: '', photoPreview: null,
       visit_plan_id: '', healthcare_professional_id: '',
-      establishment_id: '', campaign_id: ''
+      establishment_id: '', campaign_id: '', plan_visit_type: ''
     })
   }
 
@@ -291,7 +291,8 @@ export default function DelegueApp({ session, profile }) {
       healthcare_professional_id: form.healthcare_professional_id || null,
       establishment_id: form.establishment_id || null,
       campaign_id: form.campaign_id || null,
-      visit_type: 'planned'
+      // Une visite planifiée en duo (Accompagnée / Coaching) le reste une fois réalisée
+      visit_type: ['accompanied', 'coaching'].includes(form.plan_visit_type) ? form.plan_visit_type : 'planned'
     }
 
     if (!isOnline()) {
@@ -338,6 +339,7 @@ export default function DelegueApp({ session, profile }) {
     setForm(f => ({
       ...f,
       visit_plan_id: plan.id,
+      plan_visit_type: plan.visit_type || '',
       healthcare_professional_id: plan.healthcare_professional_id,
       establishment_id: plan.establishment_id || '',
       campaign_id: plan.campaign_id || '',

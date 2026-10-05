@@ -7,6 +7,7 @@ export default function PlanificationVisites({ onBack, profile }) {
   const [campagnes, setCampagnes] = useState([])
   const [portfolios, setPortfolios] = useState([])
   const [etablissements, setEtablissements] = useState([])
+  const [companions, setCompanions] = useState([]) // managers et country managers pouvant accompagner
   const [loading, setLoading] = useState(true)
   const [showForm, setShowForm] = useState(false)
   const [editing, setEditing] = useState(null)
@@ -65,7 +66,26 @@ export default function PlanificationVisites({ onBack, profile }) {
     setLoading(false)
   }
 
+  useEffect(() => {
+    supabase.from('profiles')
+      .select('id, role, managers(nom, prenom)')
+      .eq('agence_id', profile.agence_id)
+      .in('role', ['manager', 'country_manager'])
+      .then(({ data, error }) => {
+        if (error) console.error('Erreur chargement des managers:', error)
+        setCompanions(data || [])
+      })
+  }, [])
+
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }))
+
+  // Visite en duo : si c'est un manager qui planifie, il est proposé par défaut comme accompagnateur
+  useEffect(() => {
+    const duo = form.visit_type === 'accompanied' || form.visit_type === 'coaching'
+    if (duo && !form.companion_id && ['manager', 'country_manager'].includes(profile.role)) {
+      setForm(f => ({ ...f, companion_id: profile.id }))
+    }
+  }, [form.visit_type])
 
   const resetForm = () => setForm({
     delegate_id: '', healthcare_professional_id: '',
@@ -362,9 +382,17 @@ export default function PlanificationVisites({ onBack, profile }) {
               {(form.visit_type === 'accompanied' || form.visit_type === 'coaching') && (
                 <div>
                   <label className="text-xs font-medium text-[#667085] uppercase tracking-wide">Manager accompagnateur</label>
-                  <input value={form.companion_id} onChange={e => set('companion_id', e.target.value)}
-                    className="w-full mt-1 p-3 rounded-lg border border-[#DDE4EA] bg-white text-sm text-[#172B4D]"
-                    placeholder="ID du manager..." />
+                  <select value={form.companion_id} onChange={e => set('companion_id', e.target.value)}
+                    className="w-full mt-1 p-3 rounded-lg border border-[#DDE4EA] bg-white text-sm text-[#172B4D]">
+                    <option value="">Sélectionner le manager...</option>
+                    {companions.map(c => (
+                      <option key={c.id} value={c.id}>
+                        {c.managers ? `${c.managers.prenom} ${c.managers.nom}` : 'Compte sans fiche'}
+                        {' — '}{c.role === 'country_manager' ? 'Country Manager' : 'Manager'}
+                      </option>
+                    ))}
+                  </select>
+                  <p className="text-xs text-[#98A2B3] mt-1">Le manager qui accompagne le délégué pendant cette visite.</p>
                 </div>
               )}
 

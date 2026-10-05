@@ -96,9 +96,8 @@ export default function RapportCoaching({ onBack, profile }) {
       supabase.from('visites')
         .select('*, delegates(nom, prenom)')
         .eq('agence_id', profile.agence_id)
-        .eq('visit_type', 'accompanied')
         .order('created_at', { ascending: false })
-        .limit(50),
+        .limit(150),
       supabase.from('delegates').select('*').eq('agence_id', profile.agence_id).order('nom')
     ])
     setRapports(r || [])
@@ -251,9 +250,18 @@ export default function RapportCoaching({ onBack, profile }) {
                 <select value={form.visit_id} onChange={e => set('visit_id', e.target.value)}
                   className="w-full mt-1 p-3 rounded-lg border border-[#DDE4EA] bg-white text-sm text-[#172B4D]">
                   <option value="">Sélectionner la visite...</option>
-                  {visites.filter(v => !form.delegate_id || v.delegate_id === form.delegate_id).map(v => (
-                    <option key={v.id} value={v.id}>{v.nom_contact || '—'} · {v.created_at?.slice(0, 10)}</option>
-                  ))}
+                  {(() => {
+                    const duDelegue = visites.filter(v => !form.delegate_id || v.delegate_id === form.delegate_id)
+                    const duo = duDelegue.filter(v => ['accompanied', 'coaching'].includes(v.visit_type))
+                    const autres = duDelegue.filter(v => !['accompanied', 'coaching'].includes(v.visit_type))
+                    const opt = v => <option key={v.id} value={v.id}>{v.nom_contact || '—'} · {v.created_at?.slice(0, 10)}</option>
+                    return (
+                      <>
+                        {duo.length > 0 && <optgroup label="👥 Visites en duo">{duo.map(opt)}</optgroup>}
+                        {autres.length > 0 && <optgroup label="Autres visites">{autres.map(opt)}</optgroup>}
+                      </>
+                    )
+                  })()}
                 </select>
               </div>
 
