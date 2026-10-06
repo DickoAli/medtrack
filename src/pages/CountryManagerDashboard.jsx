@@ -23,6 +23,7 @@ export default function CountryManagerDashboard({ session, profile, agence }) {
   const [loadingTeam, setLoadingTeam] = useState(false)
   const [selectedDelegate, setSelectedDelegate] = useState(null)
   const [delegateVisits, setDelegateVisits] = useState([])
+  const [coachedVisitIds, setCoachedVisitIds] = useState([]) // visites déjà évaluées pour ce manager par moi
   const [loadingVisits, setLoadingVisits] = useState(false)
   const [selectedVisit, setSelectedVisit] = useState(null)
   const [scoreForm, setScoreForm] = useState({})
@@ -154,6 +155,17 @@ export default function CountryManagerDashboard({ session, profile, agence }) {
     setLoadingVisits(false)
     if (error) { alert('Erreur : ' + error.message); return }
     setDelegateVisits(data || [])
+    const ids = (data || []).map(v => v.id)
+    if (ids.length > 0) {
+      const { data: done } = await supabase.from('coaching_reports')
+        .select('visit_id')
+        .eq('manager_id', coachingManager.id)
+        .eq('evaluator_id', profile.id)
+        .in('visit_id', ids)
+      setCoachedVisitIds((done || []).map(d => d.visit_id))
+    } else {
+      setCoachedVisitIds([])
+    }
     setCoachStep('visit')
   }
 
@@ -188,7 +200,12 @@ export default function CountryManagerDashboard({ session, profile, agence }) {
     })
 
     setSavingCoaching(false)
-    if (error) { alert('Erreur : ' + error.message); return }
+    if (error) {
+      alert(error.code === '23505'
+        ? 'Vous avez déjà évalué ce manager sur cette visite. Choisissez une autre visite.'
+        : 'Erreur : ' + error.message)
+      return
+    }
 
     setCoachingManager(null)
     fetchAll()
@@ -427,15 +444,19 @@ export default function CountryManagerDashboard({ session, profile, agence }) {
                 ) : delegateVisits.length === 0 ? (
                   <p className="text-xs text-[#98A2B3] text-center py-4">Aucune visite récente pour ce délégué.</p>
                 ) : (
-                  delegateVisits.map(v => (
-                    <button key={v.id} onClick={() => pickVisit(v)}
-                      className="text-left p-3 rounded-lg border border-[#DDE4EA] bg-[#F4F7F9]">
-                      <p className="text-sm font-medium text-[#172B4D]">{v.nom_contact || 'Sans nom'}</p>
-                      <p className="text-xs text-[#667085]">
-                        {new Date(v.created_at).toLocaleDateString('fr-FR')} {v.produit && `· ${v.produit}`}
-                      </p>
-                    </button>
-                  ))
+                  delegateVisits.map(v => {
+                    const dejaFait = coachedVisitIds.includes(v.id)
+                    return (
+                      <button key={v.id} onClick={() => !dejaFait && pickVisit(v)} disabled={dejaFait}
+                        className={`text-left p-3 rounded-lg border border-[#DDE4EA] bg-[#F4F7F9] ${dejaFait ? 'opacity-60' : ''}`}>
+                        <p className="text-sm font-medium text-[#172B4D]">{v.nom_contact || 'Sans nom'}</p>
+                        <p className="text-xs text-[#667085]">
+                          {new Date(v.created_at).toLocaleDateString('fr-FR')} {v.produit && `· ${v.produit}`}
+                        </p>
+                        {dejaFait && <p className="text-xs text-[#087F5B] font-semibold mt-1">✅ Déjà évaluée par vous</p>}
+                      </button>
+                    )
+                  })
                 )}
               </div>
             )}

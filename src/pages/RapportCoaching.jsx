@@ -147,7 +147,9 @@ export default function RapportCoaching({ onBack, profile }) {
     setSaving(false)
     if (error) {
       console.error('Erreur coaching:', error)
-      alert('Le coaching n\'a pas été enregistré : ' + error.message)
+      alert(error.code === '23505'
+        ? 'Vous avez déjà évalué ce délégué sur cette visite. Choisissez une autre visite.'
+        : 'Le coaching n\'a pas été enregistré : ' + error.message)
       return
     }
     setShowForm(false)
